@@ -1,0 +1,16 @@
+[package]
+name = "inst-audit"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+inst-model = { path = "../inst-model" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,14 @@
+# Edge: Budget Approval -> Contract Execution
+#
+# Transition from budget approval to contract execution and
+# completion. The approved purchase is formalized, recorded in
+# the financial system, and all stakeholders are notified.
+
+id = "e1000003-aaaa-4bbb-8ccc-ddddeeee0003"
+workflow_id = "f1000001-aaaa-4bbb-8ccc-ddddeeee0001"
+from_node_id = "aa000003-aaaa-4bbb-8ccc-ddddeeee0003"
+to_node_id = "aa000004-aaaa-4bbb-8ccc-ddddeeee0004"
+label = "Execute Contract"
+rule = "Record executed contract and purchase order in SAP with correct GL coding and fund allocation, notify requesting department and program staff of contract execution, archive all procurement documentation including vendor assessments, approval memos, and signed contracts in the document management system"
+created_at = "2025-01-16T09:30:00Z"
+updated_at = "2025-01-16T09:30:00Z"

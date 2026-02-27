@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote add origin git@github.com:CyberHoward/cl-institute.git)",
+      "Bash(git add .gitignore db_layout.sql intelligent-institution-architecture.md rust/ typescript/)",
+      "Bash(git commit:*)",
+      "Bash(git push -u origin master)"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+# Finance Director
+#
+# Controls budget allocation and ensures fiscal responsibility.
+# Approves expenditures within delegated authority, manages fund
+# accounting, and ensures compliance with grant restrictions and
+# nonprofit financial regulations.
+
+id = "b1000001-aaaa-4bbb-8ccc-ddddeeee0003"
+organization_id = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+name = "Finance Director"
+description = "Oversees all financial operations including budget management, fund accounting, and expenditure approval. Ensures that procurement spending aligns with approved budgets, grant restrictions, and the Foundation's financial policies. Has delegated authority for purchases up to $25,000."
+authority_level = 3
+created_at = "2025-01-15T10:30:00Z"
+updated_at = "2025-01-15T10:30:00Z"

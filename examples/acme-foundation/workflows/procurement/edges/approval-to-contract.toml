@@ -1,0 +1,14 @@
+# Edge: Vendor Review -> Budget Approval
+#
+# Transition from vendor review to budget approval. Once vendors
+# have been evaluated, the recommended vendor and cost estimate
+# are forwarded to the Finance Director for budget authorization.
+
+id = "e1000002-aaaa-4bbb-8ccc-ddddeeee0002"
+workflow_id = "f1000001-aaaa-4bbb-8ccc-ddddeeee0001"
+from_node_id = "aa000002-aaaa-4bbb-8ccc-ddddeeee0002"
+to_node_id = "aa000003-aaaa-4bbb-8ccc-ddddeeee0003"
+label = "Request Budget Approval"
+rule = "Generate purchase order from approved template using the recommended vendor details, verify budget availability in SAP for the designated line item, route purchase order for Finance Director signature via DocuSign"
+created_at = "2025-01-16T09:30:00Z"
+updated_at = "2025-01-16T09:30:00Z"
