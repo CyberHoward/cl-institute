@@ -1,0 +1,9 @@
+# Rust
+rust/target/
+
+# TypeScript
+typescript/node_modules/
+typescript/dist/
+
+# OS
+.DS_Store

@@ -1,0 +1,15 @@
+[package]
+name = "clinstitute"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+
+[[bin]]
+name = "clinstitute"
+path = "src/main.rs"
+
+[lib]
+name = "clinstitute"
+path = "src/lib.rs"
