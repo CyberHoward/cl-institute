@@ -12,8 +12,6 @@ use crate::types::{
 pub struct GraphConnectivity;
 
 impl Constraint for GraphConnectivity {
-    type Context = ValidationContext;
-
     fn name(&self) -> &str {
         "graph_connectivity"
     }
@@ -23,7 +21,7 @@ impl Constraint for GraphConnectivity {
          and all nodes must be reachable from the start node"
     }
 
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>> {
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>> {
         let mut violations = Vec::new();
 
         for wf_data in &ctx.workflows {

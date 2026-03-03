@@ -8,7 +8,7 @@ use crate::types::{ValidationContext, ValidationResult};
 /// The constraint engine collects constraints and runs them all against
 /// a `ValidationContext`, producing an aggregated `ValidationResult`.
 pub struct ConstraintEngine {
-    constraints: Vec<Box<dyn Constraint<Context = ValidationContext>>>,
+    constraints: Vec<Box<dyn Constraint>>,
 }
 
 impl ConstraintEngine {
@@ -34,7 +34,7 @@ impl ConstraintEngine {
     /// Register an additional constraint.
     pub fn add_constraint(
         &mut self,
-        c: impl Constraint<Context = ValidationContext> + 'static,
+        c: impl Constraint + 'static,
     ) {
         self.constraints.push(Box::new(c));
     }

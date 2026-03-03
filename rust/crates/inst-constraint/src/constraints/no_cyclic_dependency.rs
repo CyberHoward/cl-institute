@@ -15,8 +15,6 @@ use crate::types::{
 pub struct NoCyclicDependency;
 
 impl Constraint for NoCyclicDependency {
-    type Context = ValidationContext;
-
     fn name(&self) -> &str {
         "no_cyclic_dependency"
     }
@@ -25,7 +23,7 @@ impl Constraint for NoCyclicDependency {
         "Detect cycles in the workflow graph (warning — some workflows legitimately cycle)"
     }
 
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>> {
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>> {
         let mut violations = Vec::new();
 
         for wf_data in &ctx.workflows {

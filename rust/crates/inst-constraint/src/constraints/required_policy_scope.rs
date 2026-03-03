@@ -30,8 +30,6 @@ impl RequiredPolicyScope {
 }
 
 impl Constraint for RequiredPolicyScope {
-    type Context = ValidationContext;
-
     fn name(&self) -> &str {
         "required_policy_scope"
     }
@@ -41,7 +39,7 @@ impl Constraint for RequiredPolicyScope {
          with a matching scope in the organization"
     }
 
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>> {
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>> {
         let mut violations = Vec::new();
 
         for wf_data in &ctx.workflows {

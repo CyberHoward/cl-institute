@@ -10,8 +10,6 @@ use crate::types::{
 pub struct UniqueNames;
 
 impl Constraint for UniqueNames {
-    type Context = ValidationContext;
-
     fn name(&self) -> &str {
         "unique_names"
     }
@@ -21,7 +19,7 @@ impl Constraint for UniqueNames {
          must be unique within each function"
     }
 
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>> {
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>> {
         let mut violations = Vec::new();
 
         // --- Check role name uniqueness within the organization ---

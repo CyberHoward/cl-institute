@@ -10,8 +10,6 @@ use crate::types::{
 pub struct EdgeNodeReference;
 
 impl Constraint for EdgeNodeReference {
-    type Context = ValidationContext;
-
     fn name(&self) -> &str {
         "edge_node_reference"
     }
@@ -20,7 +18,7 @@ impl Constraint for EdgeNodeReference {
         "Every edge must reference existing nodes in the same workflow"
     }
 
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>> {
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>> {
         let mut violations = Vec::new();
 
         for wf_data in &ctx.workflows {

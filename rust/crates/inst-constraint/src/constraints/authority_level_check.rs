@@ -18,8 +18,6 @@ use crate::types::{
 pub struct AuthorityLevelCheck;
 
 impl Constraint for AuthorityLevelCheck {
-    type Context = ValidationContext;
-
     fn name(&self) -> &str {
         "authority_level_check"
     }
@@ -29,7 +27,7 @@ impl Constraint for AuthorityLevelCheck {
          sufficient authority_level must have permission on an incoming edge"
     }
 
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>> {
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>> {
         let mut violations = Vec::new();
 
         // Build a lookup: RoleId -> authority_level.

@@ -1,4 +1,4 @@
-use crate::types::ConstraintViolation;
+use crate::types::{ConstraintViolation, ValidationContext};
 
 /// Core abstraction for institutional invariant validation.
 ///
@@ -7,12 +7,9 @@ use crate::types::ConstraintViolation;
 /// the `ConstraintEngine` collects them and runs them all against
 /// the same `ValidationContext`.
 pub trait Constraint {
-    /// The data this constraint needs to evaluate.
-    type Context;
-
     /// Validate the context, returning `Ok(())` if no violations
     /// are found, or `Err(violations)` listing every issue detected.
-    fn validate(&self, ctx: &Self::Context) -> Result<(), Vec<ConstraintViolation>>;
+    fn validate(&self, ctx: &ValidationContext) -> Result<(), Vec<ConstraintViolation>>;
 
     /// A short, unique name for this constraint (e.g., `"graph_connectivity"`).
     fn name(&self) -> &str;
