@@ -5,7 +5,6 @@ use crate::ids::{EdgeId, NodeId, RequirementId, RoleId, WorkflowId};
 
 /// An edge connecting two decision nodes in the workflow graph.
 ///
-/// Maps to `public.edges` in the DB schema.
 /// Edges describe *what* needs to happen between decisions (intent-level),
 /// not *how* (implementation). The `rule` field is the edge specification
 /// that gets compiled to automations by the integration compiler.
@@ -43,8 +42,6 @@ impl Edge {
 }
 
 /// The type of requirement attached to an edge transition.
-///
-/// Maps to `public.requirement_type` enum in DB.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequirementType {
@@ -54,7 +51,6 @@ pub enum RequirementType {
 
 /// A requirement that must be satisfied for an edge transition.
 ///
-/// Maps to `public.edge_requirements`.
 /// Examples: "Upload signed contract", "Budget approval from CFO".
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgeRequirement {
@@ -74,8 +70,6 @@ pub struct EdgeRequirement {
 }
 
 /// Which organizational roles are authorized to execute a transition.
-///
-/// Maps to `public.edge_role_permissions`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgeRolePermission {
     pub edge_id: EdgeId,

@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use crate::ids::{InstanceId, NodeId, RequirementId, SubmissionId, UserId, WorkflowId};
 
 /// Runtime status of a workflow instance.
-///
-/// Maps to `public.instance_status` enum in DB.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum InstanceStatus {
@@ -17,7 +15,6 @@ pub enum InstanceStatus {
 
 /// A running instance of a workflow — the execution state.
 ///
-/// Maps to `public.workflow_instances`.
 /// Tracks the current position in the decision graph and
 /// the trace of decisions made so far.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,8 +49,6 @@ impl WorkflowInstance {
 }
 
 /// A document submitted to satisfy an edge requirement.
-///
-/// Maps to `public.document_submissions`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentSubmission {
     pub id: SubmissionId,

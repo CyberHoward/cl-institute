@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::ids::OrganizationId;
 
 /// Top-level institutional entity.
-///
-/// Maps to `public.organizations` in the DB schema.
-/// The `rules` field holds named text rules as key-value pairs (JSONB in DB).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Organization {
     pub id: OrganizationId,
@@ -16,7 +13,6 @@ pub struct Organization {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// Named rules: key = rule name, value = rule description text.
-    /// Corresponds to the JSONB `rules` column in `organizations`.
     #[serde(default)]
     pub rules: HashMap<String, String>,
     pub created_at: DateTime<Utc>,

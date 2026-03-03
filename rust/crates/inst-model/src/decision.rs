@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use crate::ids::{NodeId, WorkflowId};
 
 /// The type of a node in the decision graph.
-///
-/// Maps to `public.node_type` enum in DB.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
@@ -30,7 +28,6 @@ pub enum DecisionType {
 
 /// A node in the workflow decision graph — the atomic unit of the system.
 ///
-/// Maps to `public.nodes` in the DB schema.
 /// In the architecture, this is the "judgment point" where institutional
 /// decisions require context, policy, precedent, and discretion.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use crate::ids::{MemberId, OrganizationId, RoleId, UserId};
 
 /// Permission level for organization membership.
-///
-/// Maps to `public.organization_permission_level` enum in DB.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PermissionLevel {
@@ -16,8 +14,6 @@ pub enum PermissionLevel {
 }
 
 /// A member of an organization (user + permission level).
-///
-/// Maps to `public.organization_members`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganizationMember {
     pub id: MemberId,
@@ -30,7 +26,6 @@ pub struct OrganizationMember {
 
 /// An institutional role within an organization (e.g., "compliance-officer").
 ///
-/// Maps to `public.organizational_roles`.
 /// These are distinct from permission levels — they represent domain-specific
 /// authority (who can approve procurement, who reviews compliance, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,8 +59,6 @@ impl OrganizationalRole {
 }
 
 /// Assignment of an organizational role to a member.
-///
-/// Maps to `public.member_organizational_roles`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemberRoleAssignment {
     pub member_id: MemberId,
