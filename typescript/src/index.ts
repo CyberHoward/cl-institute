@@ -1,105 +1,59 @@
 /**
  * @clinstitute/typescript
  *
- * TypeScript system for the Intelligent Institution Initiative.
+ * Core workflow engine for the Intelligent Institution Initiative.
  *
- * This package provides the institutional model, Petri net execution engine,
- * AI-driven policy interpretation, integration compilation, and autonomous
- * agent operation.
+ * Provides a Coloured Petri Net execution engine with institutional semantics:
+ * authority-gated transitions, policy-scoped governance, cryptographic audit
+ * trails, and structured context assembly for agent execution.
  *
  * Modules:
- * - types/          -- Core type definitions
- * - spike/          -- Petri net execution engine (spike)
- * - cli-bridge/     -- Model access layer
- * - orchestration/  -- LLM prompt management, conversation state
- * - policy-interpreter/ -- Policy assembly, LLM reasoning for decisions
- * - integration-compiler/ -- Edge specification -> automation compilation
- * - agent/          -- Autonomous agent runtime
- * - targets/        -- Compilation target plugins (n8n, human-checklist)
+ * - core/engine   — Engine class: definition, runtime, and query operations
+ * - core/audit    — Hash-chained audit log
+ * - core/context  — Work order assembly for agent goal construction
+ * - core/validate — Net structural validation
+ * - core/db       — SQLite schema and connection management
+ * - core/types    — Canonical type definitions (CPN + institutional model)
  */
 
-// Types (re-export all interfaces and type aliases)
+export {
+  Engine,
+  AuditLog,
+  buildWorkOrder,
+  validateNet,
+  DB,
+} from "./core/index.js";
+
 export type {
-  Organization,
-  PermissionLevel,
-  OrganizationMember,
-  OrganizationalRole,
-  MemberRoleAssignment,
-  Function,
-  Workflow,
-  WorkflowVersion,
-  NodeType,
-  DecisionType,
-  DecisionNode,
-  Edge,
-  RequirementType,
-  EdgeRequirement,
-  EdgeRolePermission,
+  TransitionDef,
+  WorkOrder,
+  Institution,
+  Role,
+  Actor,
+  ActorType,
+  ActorRoleAssignment,
   PolicyStrength,
   Policy,
-  Integration,
-  Capability,
+  Net,
+  Place,
+  JsonSchema,
+  TransitionMode,
+  DecisionType,
+  Postconditions,
+  EvidenceType,
+  EvidenceRequirement,
+  Transition,
+  ArcDirection,
+  Arc,
+  Token,
   InstanceStatus,
   WorkflowInstance,
   AuditAction,
-  Actor,
+  Evidence,
   AuditEntry,
   Severity,
-  ViolationLocation,
   ConstraintViolation,
   ValidationResult,
-  ChainVerification,
-  ChainVerificationError,
-} from "./types/index.js";
-
-// Model Access Layer
-export { CliBridge, ModelError } from "./cli-bridge/index.js";
-export type { CliBridgeOptions } from "./cli-bridge/index.js";
-
-// Orchestration
-export { Orchestrator } from "./orchestration/index.js";
-export type {
-  ConversationMessage,
-  ConversationState,
-  LlmProviderConfig,
-  LlmResponse,
-} from "./orchestration/index.js";
-
-// Policy Interpreter
-export { PolicyInterpreter } from "./policy-interpreter/index.js";
-export type {
-  ResolvedPolicy,
-  PolicyRecommendation,
-} from "./policy-interpreter/index.js";
-
-// Integration Compiler
-export { IntegrationCompiler } from "./integration-compiler/index.js";
-export type {
-  CompiledEdge,
-  ResolvedCapability,
-  CompilationTarget,
-} from "./integration-compiler/index.js";
-
-// Agent
-export { Agent } from "./agent/index.js";
-export type {
-  AgentMode,
-  AgentConfig,
-  AgentDecision,
-  AgentEvent,
-  AgentEventHandler,
-} from "./agent/index.js";
-
-// Targets
-export { N8nTarget } from "./targets/n8n/index.js";
-export type {
-  N8nNode,
-  N8nConnection,
-  N8nWorkflow,
-} from "./targets/n8n/index.js";
-
-export { HumanChecklistTarget } from "./targets/human-checklist/index.js";
-export type {
-  ChecklistStep,
-  Checklist,
-} from "./targets/human-checklist/index.js";
+  FiringResult,
+  PendingJudgment,
+} from "./core/index.js";

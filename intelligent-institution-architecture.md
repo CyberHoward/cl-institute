@@ -4,7 +4,7 @@
 
 The Intelligent Institution Initiative is a system that makes institutions programmable by representing their structure, workflows, and decision-making processes as code. Rather than competing with existing workflow automation tools, the system targets the **judgment layer** — the points in institutional workflows where decisions require context, policy, precedent, and discretion.
 
-The architecture is a unified TypeScript system. A core model layer owns the institutional representation, invariants, and Petri net execution engine. An intelligence layer manages AI-driven policy interpretation, integration compilation, and agent operation. The system is file-based and git-managed, ensuring reproducibility, auditability, and extensibility.
+The architecture is a unified TypeScript system built around a **Coloured Petri Net engine with institutional semantics**. The core engine owns the workflow model, token-based execution, authority enforcement, policy resolution, and cryptographic audit logging — all persisted in SQLite. An intelligence layer (future) will manage AI-driven agent execution at transitions, consuming structured work orders assembled from the engine's state.
 
 ---
 
@@ -12,7 +12,7 @@ The architecture is a unified TypeScript system. A core model layer owns the ins
 
 Institutions can be represented as formal systems expressed in code. This representation inherits the properties of code itself: versioning, diffability, composability, upgradability, and auditability. These are not features to be built — they emerge from the representation.
 
-The system does not model every step in an institutional workflow. Deterministic, mechanical steps are a solved problem addressed by existing automation tools (n8n, Zapier, RPA platforms, agentic tooling). Instead, the system models the **decision topology** — where institutional judgment is required, what governs it, and how outcomes are recorded.
+The system does not model every step in an institutional workflow. Deterministic, mechanical steps are a solved problem addressed by existing automation tools. Instead, the system models the **decision topology** — where institutional judgment is required, what governs it, and how outcomes are recorded.
 
 Natural language is the most effective medium for expressing institutional knowledge. Large language models serve as the bridge between natural language policy and formal execution, enabling a stratified representation where each layer uses the formalism appropriate to its nature.
 
@@ -22,38 +22,43 @@ Natural language is the most effective medium for expressing institutional knowl
 
 ### 2.1 The Formality Spectrum
 
-Institutional rules exist on a spectrum of formality. The system represents them in four stratified layers:
+Institutional rules exist on a spectrum of formality. The system represents them as **policy strengths** attached to scoped policy objects:
 
-| Layer | Nature | Representation | Enforcement |
-|-------|--------|----------------|-------------|
-| **Constraints** | Hard rules, legal/regulatory mandates | Typed predicates, formal logic | Machine-enforced, compile-time and runtime |
-| **Procedures** | Defined steps with authorized deviation | State machines, decision graphs | Executed deterministically with logged overrides |
-| **Policies** | Intent-bearing guidance, preferences | Structured natural language with semantic metadata | LLM-interpreted at decision time |
-| **Context** | Tacit knowledge, institutional culture | Unstructured natural language | LLM-referenced, advisory only |
+| Strength | Nature | Enforcement |
+|----------|--------|-------------|
+| **Constraint** | Hard rules, legal/regulatory mandates | Machine-enforced at runtime |
+| **Procedure** | Defined steps with authorized deviation | Included in work orders, logged overrides |
+| **Preference** | Intent-bearing guidance | Included in agent context, advisory |
+| **Context** | Tacit knowledge, institutional culture | Included in agent context, advisory |
 
-Each layer uses the formalism appropriate to its nature. The LLM serves as the interpreter that bridges between layers.
+Policies are scoped hierarchically (e.g., `carta-de-agua.board-decision` → `carta-de-agua.*` → `*`) and resolved at query time ordered by strength then specificity.
 
 ### 2.2 The Decision Point Ontology
 
-A **judgment point** (decision node) is the atomic unit of the system. Its components:
+A **judgment point** is a transition with `mode: "judgment"`. Its components:
 
 - **Decision type** — approval, classification, prioritization, allocation, exception handling
-- **Inputs** — documents, data, prior decisions, contextual information required to decide
-- **Governing policies** — scoped by domain and decision type, drawn from Layer 3
-- **Authority model** — who can make this decision, delegation rules, escalation paths
-- **Precedent** — how this type of decision has been made before (historical decision records)
-- **Output schema** — what the decision produces (boolean, ranking, modified document, routing choice)
-- **Accountability trail** — who decided, when, based on what, with what reasoning
+- **Inputs** — token payloads from consumed places, plus resolved context sources
+- **Governing policies** — scoped by domain and transition ID, drawn from the policy store
+- **Authority model** — numeric `requires_authority` level, checked against actor role assignments
+- **Evidence requirements** — what proof must be attached (artifact, reference, attestation)
+- **Postconditions** — required, desired, and escalation outcomes
+- **Output schema** — structured data the decision must produce
+- **Accountability trail** — cryptographically chained audit entries with full context
 
-### 2.3 Workflow as Decision Topology
+### 2.3 Workflow as Coloured Petri Net
 
-A workflow is not modeled as a linear sequence of steps. It is modeled as a **graph of judgment points** connected by **edge specifications**. The edges describe *what* needs to happen between decisions (intent-level), not *how* (implementation-level). Implementation is delegated to external automation tools via the integration layer.
+Workflows are modeled as **Coloured Petri Nets** (CPNs). Places represent states, transitions represent actions, and coloured tokens carry structured payloads through the net. This gives the system precise semantics for concurrency, synchronization, and data flow.
 
-The execution model uses **Petri nets** as the formal foundation. Places represent states (conditions that hold), transitions represent actions (including agent-executed judgment), and tokens carry context through the net. This gives the system precise semantics for concurrency, synchronization, and state that informal workflow graphs lack.
-
-### 2.4 Telescoping Abstraction
-
-Workflows are defined at multiple resolutions simultaneously. A high-level business process decomposes into sub-workflows, which decompose into individual tasks. The level at which something is "atomic" versus "composite" is not fixed — it depends on the observer and the operational context. This mirrors function composition in code: abstraction layers with stable external interfaces and expandable internals.
+Each transition declares:
+- **consumes/produces** — which places it reads from and writes to
+- **intent** — natural language description of what the transition accomplishes
+- **mode** — `deterministic`, `judgment`, or `agentic`
+- **requires_authority** — minimum authority level to fire
+- **context_sources** — keys for assembling the agent's working context
+- **postconditions** — required and desired outcomes
+- **evidence_requirements** — proof that must be captured
+- **available_tools** — which tools the agent may use during execution
 
 ---
 
@@ -66,240 +71,170 @@ Workflows are defined at multiple resolutions simultaneously. A high-level busin
 │                    TypeScript System                     │
 │                                                         │
 │  ┌───────────────────────────────────────────────────┐  │
-│  │              Intelligence Layer                    │  │
+│  │           Intelligence Layer (future)              │  │
 │  │                                                   │  │
-│  │  ┌─────────────┐ ┌──────────────┐ ┌───────────┐  │  │
-│  │  │     LLM     │ │   Policy     │ │Integration│  │  │
-│  │  │Orchestration│ │ Interpreter  │ │ Compiler  │  │  │
-│  │  └──────┬──────┘ └──────┬───────┘ └─────┬─────┘  │  │
-│  │         │               │               │        │  │
-│  │  ┌──────┴───────────────┴───────────────┴─────┐  │  │
-│  │  │              Agent Runtime                  │  │  │
-│  │  └──────────────────┬──────────────────────────┘  │  │
+│  │  ┌──────────────────────────────────────────────┐ │  │
+│  │  │           Agent Runtime                       │ │  │
+│  │  │  Consumes WorkOrders from core/context.ts     │ │  │
+│  │  │  Fires transitions via Engine.fireTransition  │ │  │
+│  │  └──────────────────┬───────────────────────────┘ │  │
 │  └─────────────────────┼─────────────────────────────┘  │
 │                        │                                │
 │  ┌─────────────────────┼─────────────────────────────┐  │
-│  │                     │       Core Layer             │  │
+│  │              Core Layer (implemented)              │  │
+│  │                                                   │  │
 │  │  ┌──────────────────┴──────────────────────────┐  │  │
-│  │  │           Model Access Layer                 │  │  │
+│  │  │              Engine                          │  │  │
+│  │  │  Institution / Role / Actor / Policy CRUD    │  │  │
+│  │  │  Net definition (Place, Transition, Arc)     │  │  │
+│  │  │  Runtime (instantiate, fire, marking query)  │  │  │
+│  │  │  Judgment points (pending, resolve)          │  │  │
+│  │  │  Authority enforcement                       │  │  │
 │  │  └──┬──────────┬──────────┬──────────┬─────────┘  │  │
 │  │     │          │          │          │            │  │
-│  │  ┌──┴────┐ ┌──┴───┐  ┌──┴───┐  ┌──┴─────────┐  │  │
-│  │  │Petri  │ │Const-│  │Audit │  │Integration │  │  │
-│  │  │ Net   │ │raint │  │  Log │  │  Registry  │  │  │
-│  │  │Engine │ │Engine│  │      │  │            │  │  │
-│  │  └───────┘ └──────┘  └──────┘  └────────────┘  │  │
-│  │                                                  │  │
-│  │  ┌────────────────────────────────────────────┐  │  │
-│  │  │     Institution Project Directory           │  │  │
-│  │  │  (git-managed, file-based, human-readable)  │  │  │
-│  │  └────────────────────────────────────────────┘  │  │
+│  │  ┌──┴───┐  ┌──┴───┐  ┌──┴────┐  ┌──┴─────────┐  │  │
+│  │  │SQLite│  │Audit │  │Context│  │ Validate   │  │  │
+│  │  │  DB  │  │  Log │  │Assembly│ │            │  │  │
+│  │  │(WAL) │  │(hash │  │(work  │  │(structural │  │  │
+│  │  │      │  │chain)│  │orders)│  │ checks)    │  │  │
+│  │  └──────┘  └──────┘  └───────┘  └────────────┘  │  │
 │  └──────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Core Layer
+### 3.2 Core Layer — `src/core/`
 
-The core layer owns the institutional model, execution engine, invariants, and persistence. All components are implemented in TypeScript with Zod schemas for runtime validation.
+The core layer is fully implemented. All components are TypeScript with strict mode, SQLite persistence via `better-sqlite3`, and Zod for schema definitions.
 
-#### 3.2.1 Petri Net Execution Engine
+#### 3.2.1 Engine (`engine.ts`)
 
-The execution engine implements a Petri net semantics for workflow execution. Places represent institutional states, transitions represent actions, and tokens carry context (payloads) through the net.
+The Engine class is the primary API. It provides ~15 operations:
 
-Each transition declares:
-- **Consumes/produces** — which places it reads from and writes to (formal net semantics)
-- **Intent** — natural language description of what the transition accomplishes
-- **Context sources** — keys to look up in the context store for assembling the agent's working context
-- **Postconditions** — required and desired outcomes, verified after execution
-- **Available tools** — which tools the agent may use during execution
-- **Execution mode** — `deterministic`, `judgment`, or `agentic`
+**Definition operations:**
+- `createInstitution`, `createRole`, `createActor`, `assignRole` — institutional setup
+- `createNet`, `addPlace`, `addTransition` — CPN definition
+- `attachPolicy` — scope-based policy attachment
 
-The engine finds enabled transitions (all input places have tokens), hands them to the agent executor with the appropriate tools and context, verifies postconditions, and updates the marking.
+**Runtime operations:**
+- `instantiate` — create a workflow instance with initial token
+- `fireTransition` — authority-checked, transactional token consumption/production with audit
+- `resolveJudgment` — fire a judgment transition with decision payload and evidence
 
-**Design guidance:**
-- Use Zod schemas (`NetSchema`, `TransitionSchema`, `PlaceSchema`) for runtime validation of net definitions.
-- The context store (`ContextStore`) is a simple key-value map that accumulates data as tokens flow through the net. Transitions read from it via `context_sources` and write to it via execution payloads.
-- Postcondition verification uses deterministic checkers where possible, with LLM-as-judge fallback for semantic postconditions.
+**Query operations:**
+- `getMarking` — current token distribution for an instance
+- `getEnabledTransitions` — transitions an actor can fire given current marking
+- `getPendingJudgments` — judgment transitions awaiting resolution
+- `getPolicies` — hierarchical scope resolution with strength ordering
+- `getHistory` — audit trail for an instance
 
-#### 3.2.2 Constraint Engine
+All mutating operations that touch multiple tables are wrapped in SQLite transactions for atomicity.
 
-Evaluates Layer 1 (hard constraints) at both definition time and runtime. When a workflow is defined or modified, the constraint engine validates that all invariants hold: authority levels are sufficient, required inputs are available, policy scoping is valid. At runtime, it enforces that decisions are made by authorized actors and that edge preconditions are satisfied.
+#### 3.2.2 Database (`db.ts`)
 
-**Design guidance:**
-- Constraints are typed predicates attached to the graph. Model them as functions so new constraint types are extensible.
-- Validation produces structured error types with full context, enabling the intelligence layer to present meaningful guidance to the LLM or human operator.
+SQLite with WAL mode and foreign key enforcement. 12 tables covering:
+- Institutional structure (institutions, roles, actors, actor_roles)
+- Net definition (nets, places, transitions, arcs)
+- Governance (policies)
+- Runtime state (instances, tokens)
+- Audit (audit_entries)
 
-#### 3.2.3 Audit Log
+7 indexes for common query patterns.
 
-Append-only, structured log of every mutation to the institutional model and every decision made at runtime. Each entry captures: the action, the actor, the timestamp, the prior state, the new state, and the reasoning (if provided).
+#### 3.2.3 Audit Log (`audit.ts`)
 
-**Design guidance:**
-- JSONL format for the log file — one JSON object per line, streamable and parseable.
-- Cryptographic chaining (hash of previous entry included in each new entry) for tamper evidence.
-- Every transition firing, postcondition verification, and agent action is logged with full context.
+Append-only, hash-chained audit entries. Each entry includes:
+- Instance and transition context
+- Actor identity and authority level
+- Marking snapshots (before/after)
+- Evidence array
+- Reasoning text
+- Cryptographic chain: `prev_hash` → `entry_hash` (SHA-256)
 
-#### 3.2.4 Integration Registry
+Chain integrity is verifiable via `AuditLog.verifyChain()`.
 
-A typed declaration of what external capabilities the institution has available. Each integration exposes a set of capabilities (e.g., DocuSign exposes `route_for_signature`, SAP exposes `create_purchase_order`) with defined input/output schemas.
+#### 3.2.4 Context Assembly (`context.ts`)
 
-**Design guidance:**
-- The registry lives in the institution project directory alongside the graph — it is part of the institutional definition.
-- The registry does not contain credentials or connection details. Those are environment configuration, separate from the institutional model.
-- Tools are registered with the engine at startup and filtered per-transition based on `available_tools`.
+The `buildWorkOrder()` function assembles a 9-step structured context for agent execution:
 
-#### 3.2.5 Model Access Layer
+1. **Intent** — what am I trying to accomplish?
+2. **Token payloads** — what case data do I have?
+3. **Input schema** — do I have everything I need?
+4. **Policies** — what rules govern this? (resolved by scope, ordered by strength)
+5. **Context sources** — what else should I consider?
+6. **Output schema** — what data must I produce?
+7. **Postconditions** — what must be true when I'm done?
+8. **Evidence requirements** — what proof must I attach?
+9. **Available tools** — what can I use?
 
-The access layer provides typed operations for reading and mutating the institutional model. All other modules consume data through this layer's typed interfaces.
+This is the contract between the core engine and the future agent runtime.
 
-**Design guidance:**
-- The access layer is stateless — configuration only. Each call reads from or writes to the project directory.
-- All operations support JSON output for machine consumption.
-- The access layer is the contract between the core and the intelligence layer.
+#### 3.2.5 Validation (`validate.ts`)
 
-### 3.3 Intelligence Layer
+Structural validation of net definitions:
+- Orphan place detection (places with no arcs)
+- Judgment transitions without governing policies
+- Invalid place references
+- Sourceless transitions
 
-The intelligence layer manages AI-driven reasoning. It consumes the core layer's typed interfaces and adds LLM-powered intelligence.
+### 3.3 Intelligence Layer (future)
 
-#### 3.3.1 LLM Orchestration
+The intelligence layer will consume the core layer's `WorkOrder` interface and fire transitions through `Engine.fireTransition()`.
 
-Manages the dialogue when an AI agent is programming an institution or supporting human decision-making. Constructs prompts, parses structured outputs, manages conversation state, and translates LLM intent into sequences of model operations.
+**Agent runtime** — will observe pending transitions, assemble work orders, invoke LLMs with tools, verify postconditions, and fire transitions with evidence. The agent is a role with explicit authority, same as any human actor.
 
-**Design guidance:**
-- Use the pi-agent-core and pi-ai libraries for agent execution and model access.
-- Define a prompt template system for different interaction modes: institution definition, decision support, policy interpretation, edge specification authoring.
-- Every LLM interaction that results in a mutation to the institutional model should produce a reviewable operation sequence before execution.
+**LLM orchestration** — prompt construction from work orders, tool execution, response parsing.
 
-#### 3.3.2 Policy Interpreter
-
-When a decision point is reached and policies need to inform the judgment, this module:
-
-1. Queries the core for relevant policies by scope.
-2. Retrieves precedent from the audit log.
-3. Assembles the decision context (inputs, policies, precedent, authority model) into a structured prompt.
-4. Invokes the LLM to reason about what the policies imply for this specific case.
-5. Returns a structured recommendation or decision, which is recorded back through the model.
-
-**Design guidance:**
-- Policy scoping (attaching policies to ontological structures rather than relying on retrieval) is the primary mechanism. Policies are *in context* because of their scope, not because of similarity search.
-- For institutions with large policy sets, a secondary RAG layer may be needed, but start with scoping and add retrieval only when scoping proves insufficient.
-- Policy interpretation results should include reasoning traces for the audit log.
-
-#### 3.3.3 Integration Compiler
-
-Takes an edge specification plus the integration registry and produces an executable automation for a target platform.
-
-**Compilation flow:**
-1. Read edge specification (natural language intent + structured metadata).
-2. Read available integrations from the registry.
-3. Construct a prompt: "Given these available capabilities, produce an executable plan for this edge specification."
-4. LLM generates a platform-specific automation (n8n workflow JSON, API call sequence, human checklist).
-5. Output is validated against the integration registry (all referenced capabilities must exist).
-6. Compiled edge is stored alongside the institution definition.
-
-**Design guidance:**
-- Define compilation targets as pluggable modules. Start with one target (e.g., n8n or direct API calls) and add others incrementally.
-- The compiled output is an artifact, not the source of truth. The edge specification is the source of truth. Recompilation should be idempotent given the same specification and registry.
-- For edges where no automation exists, compile to a structured human checklist. This is the default and should be high quality.
-
-#### 3.3.4 Agent Runtime
-
-The autonomous agent that can operate the institution. It:
-
-1. Reads the decision graph to identify pending decisions (enabled transitions in the Petri net).
-2. Assembles context for each pending decision (inputs, policies, precedent) via the context store.
-3. Invokes the policy interpreter.
-4. Makes or recommends decisions (depending on delegation level and execution mode).
-5. Records outcomes through the audit log.
-6. Triggers edge execution when decisions are made and postconditions are verified.
-
-**Design guidance:**
-- The agent's authority is defined within the institutional model itself — it's a role with explicit permissions and constraints, same as any human actor.
-- All agent actions produce the same audit trail as human actions.
-- The agent should be interruptible and resumable. Its state is derived from the Petri net marking, not held internally.
-- Execution modes (`deterministic`, `judgment`, `agentic`) control how much autonomy the agent has at each transition.
+**Postcondition verification** — deterministic checkers where possible, LLM-as-judge fallback for semantic postconditions.
 
 ---
 
-## 4. Institution as Code — Project Structure
+## 4. Formality Spectrum (unchanged)
 
-An institution is a directory that lives in version control:
+The four-layer formality spectrum maps directly to the `PolicyStrength` type:
 
-```
-acme-foundation/
-├── institution.toml              # Top-level metadata, name, version
-├── roles/
-│   ├── compliance-officer.toml
-│   ├── procurement-lead.toml
-│   └── board-member.toml
-├── workflows/
-│   └── procurement/
-│       ├── workflow.toml          # Decision graph definition (Petri net)
-│       ├── decisions/
-│       │   ├── vendor-review.toml
-│       │   └── budget-approval.toml
-│       ├── edges/
-│       │   ├── review-to-approval.toml
-│       │   └── approval-to-contract.toml
-│       └── policies/
-│           ├── vendor-preference.md
-│           └── budget-thresholds.md
-├── integrations/
-│   ├── registry.toml             # Available capabilities
-│   ├── docusign.toml
-│   └── sap.toml
-├── compiled/                     # Generated automation artifacts
-│   └── procurement/
-│       └── n8n/
-│           └── review-to-approval.json
-└── audit/
-    └── log.jsonl                 # Append-only audit trail
-```
-
-**Properties inherited from this representation:**
-- **Versioning:** `git log` shows the complete history of institutional change.
-- **Diffability:** A policy change is a diff to a markdown file. A workflow restructuring is a diff to a TOML graph definition.
-- **Review:** A PR to change an authority model is reviewable by the people it affects.
-- **Branching:** Proposed institutional changes can be developed on branches, validated, and merged when approved.
-- **CI/CD:** Automated validation on every commit. The constraint engine runs in CI.
-- **Rollback:** `git revert` undoes an institutional change with full traceability.
+| PolicyStrength | Layer | Representation | Enforcement |
+|----------------|-------|----------------|-------------|
+| `"constraint"` | Hard rules | Structured text, scoped to transitions | Engine can enforce; included first in work orders |
+| `"procedure"` | Defined steps | Structured text | Included in work orders |
+| `"preference"` | Guidance | Natural language | Included in agent context |
+| `"context"` | Tacit knowledge | Natural language | Advisory, included last |
 
 ---
 
 ## 5. Progressive Adoption Path
 
-The system supports incremental adoption. An institution does not need to automate everything on day one.
+**Stage 1 — Codification (current):** Define the institutional model: institutions, roles, authority levels, workflow nets, policies. Validate net structure. The value is clarity and formal structure.
 
-**Stage 1 — Codification:** Define the institutional model: roles, authority, decision points, policies. No automation, no AI. The value is clarity and version control. Validation ensures consistency. Edge specifications compile to human checklists.
+**Stage 2 — Decision support:** Add the intelligence layer. The LLM assists humans at judgment points by consuming work orders, surfacing relevant policies and precedent, and structuring the decision. Decisions are still made by humans via `resolveJudgment()`.
 
-**Stage 2 — Decision support:** Add the intelligence layer. The LLM assists humans at decision points by assembling context, surfacing relevant policies and precedent, and structuring the decision. Decisions are still made by humans.
+**Stage 3 — Partial automation:** Agentic transitions run via LLM agents with tool access. Deterministic transitions run automatically. Judgment points still require human authority.
 
-**Stage 3 — Partial automation:** Add integrations. Edge specifications compile to executable automations where tooling exists. Deterministic transitions run automatically. Humans still make judgments.
-
-**Stage 4 — Delegated agency:** The AI agent operates with institutional authority for defined decision types. Humans oversee and handle exceptions. The override mechanism moves decisions from procedure (Layer 2) to policy-level judgment (Layer 3), is logged, and can inform future workflow refinement.
+**Stage 4 — Delegated agency:** AI agents operate with institutional authority for defined transition types. Humans oversee and handle exceptions. All agent actions produce the same audit trail as human actions.
 
 ---
 
-## 6. Key Technical Decisions and Open Questions
+## 6. Key Technical Decisions
 
 ### Decided
 
-- **Unified TypeScript architecture** — a single language for the entire system, from model to intelligence layer. TypeScript with Zod provides sufficient type safety and runtime validation for the institutional model, while eliminating the complexity of a cross-language boundary.
-- **Petri net execution model** — workflows are executed as Petri nets, giving precise formal semantics for state, concurrency, and synchronization. Transitions are the execution boundary where agents operate.
-- **Postcondition-driven verification** — transitions declare required and desired postconditions. The engine verifies them after execution using deterministic checkers and LLM-as-judge fallback.
-- **File-based, git-managed institutional model** — the institution is a directory of human-readable configuration files.
-- **Decision topology over step-by-step workflow** — the system models judgment points and their relationships, not mechanical steps.
-- **Stratified formality** — four layers from hard constraints to tacit knowledge, each with appropriate formalism.
-- **pi-agent-core / pi-ai for agent execution** — the agent runtime uses pi libraries for LLM interaction and tool execution.
+- **Unified TypeScript architecture** — single language, strict mode, ESM
+- **Coloured Petri Net execution model** — places, transitions, arcs, coloured tokens with payloads
+- **SQLite persistence** — WAL mode, transactional writes, foreign key enforcement
+- **Numeric authority levels** — flexible, composable authority model via role assignments
+- **Hierarchical policy scoping** — `domain.transition` → `domain.*` → `*` with strength ordering
+- **Cryptographic audit chaining** — SHA-256 hash chains for tamper evidence
+- **Transactional firing** — token consumption, production, and audit are atomic
+- **Work order contract** — 9-step structured context as the interface between engine and agents
+- **pi-agent-core / pi-ai for future agent execution** — agent runtime uses pi libraries
 
 ### Open
 
-- **Ontology of decision types:** The current list (approval, classification, prioritization, allocation, exception handling) is provisional. The real ontology will emerge from modeling actual institutions.
-- **Edge specification grammar:** What is the formal structure of an edge specification? How much structure vs. natural language? This needs experimentation.
-- **Telescoping depth:** How many levels of abstraction should a workflow support? Is there a natural depth limit?
-- **Policy conflict resolution:** When multiple policies apply to a decision and conflict, what is the resolution mechanism? Priority ordering? LLM-mediated synthesis?
-- **Multi-tenancy model:** Does each institution get its own project directory, or is there a higher-level structure for organizations with multiple institutional units?
-- **Runtime execution model:** When an automated workflow is running and reaches a decision point, what is the execution environment? Does the agent runtime run as a persistent service, or is it invoked on-demand?
-- **Petri net extensions:** Do we need colored Petri nets (typed tokens), timed Petri nets (timeouts), or hierarchical Petri nets (sub-nets)? The spike uses simple place/transition nets with payload-carrying tokens — when does this prove insufficient?
+- **Instance lifecycle:** When does an instance transition to `completed`, `stuck`, or `suspended`? Currently instances remain `running`.
+- **Postcondition evaluation:** How are postconditions verified after agent execution? Deterministic checkers vs. LLM-as-judge.
+- **Guard evaluation:** Guards are stored as strings but not yet evaluated. What is the guard expression language?
+- **Concurrent firing:** Current model is sequential. When do we need concurrent transition firing?
+- **Token merging:** When multiple tokens flow into a place, should payloads merge or remain separate?
+- **Net composition:** How do sub-nets compose? Can a transition expand into a sub-net?
 
 ---
 
@@ -309,62 +244,48 @@ The system supports incremental adoption. An institution does not need to automa
 typescript/
 ├── package.json
 ├── tsconfig.json
-├── fixtures/                      # Test data (vendor profiles, policies)
-│   ├── risk-policy.md
-│   └── vendor-acme.json
+├── vitest.config.ts
 ├── src/
-│   ├── index.ts                   # Package entry point
-│   ├── types/                     # Core type definitions (Zod schemas + TS interfaces)
-│   │   └── index.ts
-│   ├── spike/                     # Petri net execution engine (spike)
-│   │   ├── index.ts               # Spike entry point (vendor onboarding demo)
-│   │   ├── net/
-│   │   │   ├── types.ts           # Net, Place, Transition, Token schemas
-│   │   │   ├── engine.ts          # Petri net execution engine
-│   │   │   └── vendor-onboarding.ts  # Example net definition
-│   │   ├── agent/
-│   │   │   ├── executor.ts        # Transition → agent execution
-│   │   │   ├── llm.ts            # One-shot text generation helper
-│   │   │   └── postconditions.ts  # Postcondition verification
-│   │   ├── context/
-│   │   │   └── store.ts           # Key-value context store
-│   │   └── tools/
-│   │       ├── lookup-vendor.ts   # Vendor lookup tool
-│   │       ├── generate-document.ts  # Document generation tool
-│   │       └── send-notification.ts  # Notification tool
-│   ├── cli-bridge/                # Model access layer
-│   │   └── index.ts
-│   ├── orchestration/             # LLM prompt management, conversation
-│   │   └── index.ts
-│   ├── policy-interpreter/        # Policy assembly, LLM reasoning
-│   │   └── index.ts
-│   ├── integration-compiler/      # Edge → automation compilation
-│   │   └── index.ts
-│   ├── agent/                     # Autonomous agent runtime
-│   │   └── index.ts
-│   └── targets/                   # Compilation target plugins
-│       ├── n8n/
-│       │   └── index.ts
-│       └── human-checklist/
-│           └── index.ts
+│   ├── index.ts                   # Package entry — re-exports from core/
+│   └── core/
+│       ├── index.ts               # Barrel export
+│       ├── types.ts               # Canonical types: CPN + institutional model
+│       ├── db.ts                  # SQLite schema (12 tables) and connection
+│       ├── engine.ts              # Engine class: ~15 operations
+│       ├── audit.ts               # Hash-chained audit log
+│       ├── context.ts             # Work order assembly (buildWorkOrder)
+│       ├── validate.ts            # Net structural validation
+│       ├── types.test.ts          # Type construction tests
+│       ├── db.test.ts             # Schema creation tests
+│       ├── engine.test.ts         # 27 tests: definition, runtime, firing, judgments
+│       ├── audit.test.ts          # Hash chaining and verification tests
+│       ├── context.test.ts        # Work order assembly tests
+│       ├── validate.test.ts       # Validation rule tests
+│       └── carta-de-agua.test.ts  # End-to-end: ASADA Carta de Agua process
+```
+
+### Archived code
+
+```
+archive/
+├── iii-spike/    # Original Petri net spike (vendor onboarding scenario)
+└── rust/         # Abandoned Rust implementation
 ```
 
 ---
 
-## 8. First Milestones
+## 8. Milestones
 
-1. **✓ Spike: Petri net agent execution boundary.** Defined a Petri net for vendor onboarding, executed transitions via LLM agents with tool access, verified postconditions with deterministic checkers and LLM-as-judge fallback. Validates the core execution model.
+1. **✓ Spike: Petri net agent execution boundary.** Validated that an LLM agent can interpret transition definitions and execute them with tools. Proved the core execution model. (archived in `archive/iii-spike/`)
 
-2. **Define core model types.** Consolidate `types/index.ts` (institutional model) with `spike/net/types.ts` (Petri net model). Establish a unified type system with Zod schemas for runtime validation.
+2. **✓ Core engine with institutional semantics.** Unified CPN + institutional model. SQLite persistence. Authority enforcement. Policy scoping. Cryptographic audit. Transactional firing. 43 tests passing.
 
-3. **Build the model/store layer.** File-based persistence for institutional definitions. Read and write TOML/YAML config files. Wire the `cli-bridge` (now model access layer) to this store.
+3. **✓ First real workflow encoded.** The ASADA Carta de Agua (water availability letter) process: 9 places, 7 transitions, 7 policies, full end-to-end test with authority gating and evidence capture.
 
-4. **Build the constraint engine.** Validate institutional invariants at definition time and runtime. Authority levels, policy scoping, required inputs.
+4. **Next: Agent runtime.** Build the intelligence layer that consumes `WorkOrder` objects and executes agentic transitions via LLM + tools. Integrate with `pi-agent-core` / `pi-ai`.
 
-5. **Model one real workflow.** Take an actual institutional process and represent it as a Petri net with policies, constraints, and integration specifications. This will break the ontology in useful ways.
+5. **Next: Postcondition verification.** Deterministic verifiers mapped to postcondition strings, with LLM-as-judge fallback.
 
-6. **Build a minimal policy interpreter.** Given a decision context assembled from the model and context store, have an LLM reason about applicable policies and produce a structured recommendation.
-
-7. **Compile one edge.** Take a single edge specification and produce an executable automation for one target platform.
+6. **Next: Instance lifecycle.** Detect terminal markings, update instance status, handle stuck/suspended states.
 
 Each milestone validates the architecture at a different boundary. Prioritize the feedback loop over completeness.

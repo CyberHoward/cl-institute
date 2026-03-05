@@ -8,7 +8,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "spike": "tsx --env-file=.env src/spike/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -17,11 +18,14 @@
   "dependencies": {
     "@mariozechner/pi-agent-core": "^0.56.1",
     "@mariozechner/pi-ai": "^0.56.1",
+    "better-sqlite3": "^12.6.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.3.2",
     "tsx": "^4.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }
