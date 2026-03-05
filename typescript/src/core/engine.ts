@@ -31,19 +31,19 @@ export interface TransitionDef {
   id: string;
   consumes: string[];
   produces: string[];
-  guard?: string;
+  guard?: string | undefined;
   intent: string;
   mode: TransitionMode;
-  decision_type?: DecisionType;
+  decision_type?: DecisionType | undefined;
   requires_authority: number;
-  authorized_roles?: string[];
-  input_schema?: JsonSchema;
-  output_schema?: JsonSchema;
+  authorized_roles?: string[] | undefined;
+  input_schema?: JsonSchema | undefined;
+  output_schema?: JsonSchema | undefined;
   context_sources: string[];
   postconditions: Postconditions;
   evidence_requirements: EvidenceRequirement[];
   available_tools: string[];
-  timeout?: number;
+  timeout?: number | undefined;
 }
 
 export class Engine {

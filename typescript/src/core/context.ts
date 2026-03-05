@@ -13,7 +13,7 @@ export interface WorkOrder {
   transition_id: string;
   instance_id: string;
   mode: TransitionMode;
-  decision_type?: DecisionType;
+  decision_type?: DecisionType | undefined;
 
   // 1. What am I trying to accomplish?
   intent: string;
@@ -22,7 +22,7 @@ export interface WorkOrder {
   token_payloads: Record<string, unknown>[];
 
   // 3. Do I have everything I need?
-  input_schema?: JsonSchema;
+  input_schema?: JsonSchema | undefined;
 
   // 4. What rules govern this?
   policies: Policy[];
@@ -31,7 +31,7 @@ export interface WorkOrder {
   context_sources: string[];
 
   // 6. What data must I produce?
-  output_schema?: JsonSchema;
+  output_schema?: JsonSchema | undefined;
 
   // 7. What must be true when I'm done?
   postconditions: Postconditions;

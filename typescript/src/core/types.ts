@@ -7,7 +7,7 @@ import { z } from "zod";
 export interface Institution {
   id: string;
   name: string;
-  description?: string;
+  description?: string | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -20,7 +20,7 @@ export interface Role {
   id: string;
   institution_id: string;
   name: string;
-  description?: string;
+  description?: string | undefined;
   authority_level: number;
   created_at: string;
   updated_at: string;
@@ -59,7 +59,7 @@ export interface Policy {
   scope: string;
   strength: PolicyStrength;
   text: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -71,9 +71,9 @@ export interface Policy {
 export interface Net {
   id: string;
   institution_id: string;
-  domain?: string;
+  domain?: string | undefined;
   name: string;
-  description?: string;
+  description?: string | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -89,7 +89,7 @@ export interface Place {
   id: string;
   net_id: string;
   description: string;
-  schema?: JsonSchema;
+  schema?: JsonSchema | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,8 +107,8 @@ export type DecisionType =
 
 export interface Postconditions {
   required: string[];
-  desired?: string[];
-  escalation?: string[];
+  desired?: string[] | undefined;
+  escalation?: string[] | undefined;
 }
 
 export type EvidenceType = "artifact" | "reference" | "attestation";
@@ -127,25 +127,25 @@ export interface Transition {
   // CPN core
   consumes: string[];
   produces: string[];
-  guard?: string;
+  guard?: string | undefined;
 
   // Institutional semantics
   intent: string;
   mode: TransitionMode;
-  decision_type?: DecisionType;
+  decision_type?: DecisionType | undefined;
   requires_authority: number;
-  authorized_roles?: string[];
+  authorized_roles?: string[] | undefined;
 
   // Data flow
-  input_schema?: JsonSchema;
-  output_schema?: JsonSchema;
+  input_schema?: JsonSchema | undefined;
+  output_schema?: JsonSchema | undefined;
   context_sources: string[];
 
   // Execution contract
   postconditions: Postconditions;
   evidence_requirements: EvidenceRequirement[];
   available_tools: string[];
-  timeout?: number;
+  timeout?: number | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,11 +216,11 @@ export interface AuditEntry {
   sequence: number;
   action: AuditAction;
   actor: { actor_id: string; role_id: string; authority_level: number };
-  transition_id?: string;
-  marking_before?: Record<string, unknown>;
-  marking_after?: Record<string, unknown>;
-  evidence?: Evidence[];
-  reasoning?: string;
+  transition_id?: string | undefined;
+  marking_before?: Record<string, unknown> | undefined;
+  marking_after?: Record<string, unknown> | undefined;
+  evidence?: Evidence[] | undefined;
+  reasoning?: string | undefined;
   prev_hash: string;
   entry_hash: string;
 }
@@ -236,7 +236,7 @@ export interface ConstraintViolation {
   severity: Severity;
   message: string;
   location: string;
-  suggestion?: string;
+  suggestion?: string | undefined;
 }
 
 export interface ValidationResult {
@@ -257,7 +257,7 @@ export interface FiringResult {
   postcondition_results: Record<string, boolean>;
   evidence: Evidence[];
   audit_entry_id: string;
-  error?: string;
+  error?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------

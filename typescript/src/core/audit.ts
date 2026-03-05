@@ -6,11 +6,11 @@ export interface AppendInput {
   instance_id: string;
   action: AuditAction;
   actor: { actor_id: string; role_id: string; authority_level: number };
-  transition_id?: string;
-  marking_before?: Record<string, unknown>;
-  marking_after?: Record<string, unknown>;
-  evidence?: Evidence[];
-  reasoning?: string;
+  transition_id?: string | undefined;
+  marking_before?: Record<string, unknown> | undefined;
+  marking_after?: Record<string, unknown> | undefined;
+  evidence?: Evidence[] | undefined;
+  reasoning?: string | undefined;
 }
 
 function computeHash(data: string): string {
