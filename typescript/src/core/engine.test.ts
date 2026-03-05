@@ -236,3 +236,271 @@ describe("Engine — policies", () => {
     expect(policies).toHaveLength(0);
   });
 });
+
+describe("Engine — runtime", () => {
+  let engine: Engine;
+  let instId: string;
+  let netId: string;
+
+  beforeEach(() => {
+    engine = new Engine(":memory:");
+    instId = engine.createInstitution("ASADA").id;
+    const net = engine.createNet(instId, "Carta de Agua", "carta-de-agua");
+    netId = net.id;
+
+    engine.addPlace(netId, "intake", "Request received");
+    engine.addPlace(netId, "docs-complete", "Docs verified");
+    engine.addPlace(netId, "triaged", "Case classified");
+
+    engine.addTransition(netId, {
+      id: "check-completeness",
+      consumes: ["intake"],
+      produces: ["docs-complete"],
+      intent: "Verify all documents are present",
+      mode: "agentic",
+      requires_authority: 2,
+      context_sources: [],
+      postconditions: { required: ["docs-verified"] },
+      evidence_requirements: [],
+      available_tools: ["check-documents"],
+    });
+
+    engine.addTransition(netId, {
+      id: "triage",
+      consumes: ["docs-complete"],
+      produces: ["triaged"],
+      intent: "Classify case by impact level",
+      mode: "judgment",
+      requires_authority: 2,
+      context_sources: [],
+      postconditions: { required: ["classified"] },
+      evidence_requirements: [],
+      available_tools: [],
+    });
+
+    const role = engine.createRole(instId, "administrator", 2);
+    const actor = engine.createActor(instId, "Don Carlos", "human");
+    engine.assignRole(actor.id, role.id);
+  });
+
+  afterEach(() => {
+    engine.close();
+  });
+
+  describe("instantiate", () => {
+    it("creates an instance with a token in the start place", () => {
+      const instance = engine.instantiate(netId, "intake", {
+        applicant: "Juan Pérez",
+      });
+      expect(instance.status).toBe("running");
+      const marking = engine.getMarking(instance.id);
+      expect(marking.get("intake")).toHaveLength(1);
+      expect(marking.get("intake")![0]!.payload["applicant"]).toBe("Juan Pérez");
+    });
+  });
+
+  describe("getEnabledTransitions", () => {
+    it("returns transitions whose input places have tokens", () => {
+      const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+      const actors = engine.listActors(instId);
+      const actorId = actors[0]!.id;
+
+      const enabled = engine.getEnabledTransitions(instance.id, actorId);
+      expect(enabled).toHaveLength(1);
+      expect(enabled[0]!.id).toBe("check-completeness");
+    });
+
+    it("respects authority — low authority actor sees nothing", () => {
+      const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+      const viewerRole = engine.createRole(instId, "viewer", 0);
+      const viewer = engine.createActor(instId, "Viewer", "human");
+      engine.assignRole(viewer.id, viewerRole.id);
+
+      const enabled = engine.getEnabledTransitions(instance.id, viewer.id);
+      expect(enabled).toHaveLength(0);
+    });
+
+    it("returns empty when no tokens in input places", () => {
+      const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+      const actors = engine.listActors(instId);
+      const actorId = actors[0]!.id;
+
+      const enabled = engine.getEnabledTransitions(instance.id, actorId);
+      expect(enabled.every((t) => t.id !== "triage")).toBe(true);
+    });
+  });
+});
+
+describe("Engine — fireTransition", () => {
+  let engine: Engine;
+  let instId: string;
+  let netId: string;
+  let actorId: string;
+  let roleId: string;
+
+  beforeEach(() => {
+    engine = new Engine(":memory:");
+    instId = engine.createInstitution("ASADA").id;
+    const net = engine.createNet(instId, "Carta de Agua", "carta-de-agua");
+    netId = net.id;
+
+    engine.addPlace(netId, "intake", "Request received");
+    engine.addPlace(netId, "docs-complete", "Docs verified");
+
+    engine.addTransition(netId, {
+      id: "check-completeness",
+      consumes: ["intake"],
+      produces: ["docs-complete"],
+      intent: "Verify all documents are present",
+      mode: "deterministic",
+      requires_authority: 2,
+      context_sources: [],
+      postconditions: { required: [] },
+      evidence_requirements: [],
+      available_tools: [],
+    });
+
+    const role = engine.createRole(instId, "administrator", 2);
+    roleId = role.id;
+    const actor = engine.createActor(instId, "Don Carlos", "human");
+    actorId = actor.id;
+    engine.assignRole(actorId, roleId);
+  });
+
+  afterEach(() => {
+    engine.close();
+  });
+
+  it("fires a transition: consumes input token, produces output token", () => {
+    const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+    const result = engine.fireTransition(instance.id, "check-completeness", actorId, {
+      docs_verified: true,
+    });
+    expect(result.success).toBe(true);
+    expect(result.tokens_consumed).toHaveLength(1);
+    expect(result.tokens_produced).toHaveLength(1);
+
+    const marking = engine.getMarking(instance.id);
+    expect(marking.has("intake")).toBe(false);
+    expect(marking.get("docs-complete")).toHaveLength(1);
+    expect(marking.get("docs-complete")![0]!.payload["docs_verified"]).toBe(true);
+  });
+
+  it("writes an audit entry on fire", () => {
+    const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+    engine.fireTransition(instance.id, "check-completeness", actorId, {});
+    const history = engine.getHistory(instance.id);
+    expect(history.length).toBeGreaterThanOrEqual(2);
+    expect(history.some((e) => e.action === "transition_fired")).toBe(true);
+  });
+
+  it("rejects firing when actor lacks authority", () => {
+    const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+    const lowRole = engine.createRole(instId, "viewer", 0);
+    const lowActor = engine.createActor(instId, "Viewer", "human");
+    engine.assignRole(lowActor.id, lowRole.id);
+
+    const result = engine.fireTransition(instance.id, "check-completeness", lowActor.id, {});
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/authority/i);
+  });
+
+  it("rejects firing when input place has no token", () => {
+    const instance = engine.instantiate(netId, "intake", { applicant: "Juan" });
+    engine.fireTransition(instance.id, "check-completeness", actorId, {});
+    const result = engine.fireTransition(instance.id, "check-completeness", actorId, {});
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/token/i);
+  });
+});
+
+describe("Engine — judgment points", () => {
+  let engine: Engine;
+  let instId: string;
+  let netId: string;
+  let adminId: string;
+  let boardActorId: string;
+
+  beforeEach(() => {
+    engine = new Engine(":memory:");
+    instId = engine.createInstitution("ASADA").id;
+    const net = engine.createNet(instId, "Carta de Agua", "carta-de-agua");
+    netId = net.id;
+
+    engine.addPlace(netId, "board-ready", "Packet assembled");
+    engine.addPlace(netId, "decided", "Board has decided");
+
+    engine.addTransition(netId, {
+      id: "board-decision",
+      consumes: ["board-ready"],
+      produces: ["decided"],
+      intent: "Board reviews case and makes decision",
+      mode: "judgment",
+      decision_type: "approval",
+      requires_authority: 4,
+      context_sources: ["case-data"],
+      postconditions: { required: ["decision-made"] },
+      evidence_requirements: [
+        { id: "resolution-number", description: "Board resolution number", type: "reference", required: true },
+      ],
+      available_tools: [],
+    });
+
+    const adminRole = engine.createRole(instId, "administrator", 2);
+    const admin = engine.createActor(instId, "Don Carlos", "human");
+    engine.assignRole(admin.id, adminRole.id);
+    adminId = admin.id;
+
+    const boardRole = engine.createRole(instId, "junta-directiva", 4);
+    const boardActor = engine.createActor(instId, "Board", "human");
+    engine.assignRole(boardActor.id, boardRole.id);
+    boardActorId = boardActor.id;
+
+    engine.attachPolicy(instId, "carta-de-agua.board-decision", "constraint", "Board decision required for all approvals");
+  });
+
+  afterEach(() => {
+    engine.close();
+  });
+
+  it("lists pending judgments with context", () => {
+    const instance = engine.instantiate(netId, "board-ready", { case: "CDA-001" });
+    const pending = engine.getPendingJudgments(instance.id);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]!.transition_id).toBe("board-decision");
+    expect(pending[0]!.transition_mode).toBe("judgment");
+    expect(pending[0]!.requires_authority).toBe(4);
+    expect(pending[0]!.token_payloads).toHaveLength(1);
+    expect(pending[0]!.policies).toHaveLength(1);
+  });
+
+  it("resolves a judgment — fires the transition with decision payload", () => {
+    const instance = engine.instantiate(netId, "board-ready", { case: "CDA-001" });
+    const result = engine.resolveJudgment(
+      instance.id,
+      "board-decision",
+      boardActorId,
+      { decision: "approve", conditions: [] },
+      "Capacity confirmed by technical report",
+      [{ requirement_id: "resolution-number", type: "reference", content: "RES-2026-042", captured_at: new Date().toISOString() }],
+    );
+    expect(result.success).toBe(true);
+
+    const marking = engine.getMarking(instance.id);
+    expect(marking.has("decided")).toBe(true);
+    expect(marking.get("decided")![0]!.payload["decision"]).toBe("approve");
+  });
+
+  it("rejects judgment resolution by unauthorized actor", () => {
+    const instance = engine.instantiate(netId, "board-ready", { case: "CDA-001" });
+    const result = engine.resolveJudgment(
+      instance.id,
+      "board-decision",
+      adminId,
+      { decision: "approve" },
+      "I approve this",
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/authority/i);
+  });
+});

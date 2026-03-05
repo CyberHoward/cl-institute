@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DB } from "./db.js";
+import { AuditLog } from "./audit.js";
 import type {
   Institution,
   Role,
@@ -47,9 +48,11 @@ export interface TransitionDef {
 
 export class Engine {
   private readonly db: DB;
+  private readonly audit: AuditLog;
 
   constructor(dbPath: string) {
     this.db = new DB(dbPath);
+    this.audit = new AuditLog(this.db);
   }
 
   // -----------------------------------------------------------------------
@@ -437,6 +440,292 @@ export class Engine {
     });
 
     return policies;
+  }
+
+  // -----------------------------------------------------------------------
+  // Runtime — instances and tokens
+  // -----------------------------------------------------------------------
+
+  instantiate(
+    netId: string,
+    startPlaceId: string,
+    initialPayload: Record<string, unknown>,
+  ): WorkflowInstance {
+    const instanceId = randomUUID();
+    const now = new Date().toISOString();
+
+    this.db.sqlite
+      .prepare(
+        `INSERT INTO instances (id, net_id, status, created_at, updated_at)
+         VALUES (?, ?, 'running', ?, ?)`,
+      )
+      .run(instanceId, netId, now, now);
+
+    // Create the initial token
+    const tokenId = randomUUID();
+    this.db.sqlite
+      .prepare(
+        `INSERT INTO tokens (id, instance_id, place_id, payload_json, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(tokenId, instanceId, startPlaceId, JSON.stringify(initialPayload), now);
+
+    // Audit entry
+    this.audit.append({
+      instance_id: instanceId,
+      action: "instance_created",
+      actor: { actor_id: "system", role_id: "system", authority_level: 0 },
+      marking_after: { [startPlaceId]: [initialPayload] },
+    });
+
+    return { id: instanceId, net_id: netId, status: "running", created_at: now, updated_at: now };
+  }
+
+  getInstance(instanceId: string): WorkflowInstance {
+    const row = this.db.sqlite
+      .prepare("SELECT * FROM instances WHERE id = ?")
+      .get(instanceId) as Record<string, unknown> | undefined;
+    if (!row) throw new Error(`Instance not found: ${instanceId}`);
+    return {
+      id: row["id"] as string,
+      net_id: row["net_id"] as string,
+      status: row["status"] as InstanceStatus,
+      created_at: row["created_at"] as string,
+      updated_at: row["updated_at"] as string,
+    };
+  }
+
+  getMarking(instanceId: string): Map<string, Token[]> {
+    const rows = this.db.sqlite
+      .prepare("SELECT * FROM tokens WHERE instance_id = ?")
+      .all(instanceId) as Array<Record<string, unknown>>;
+
+    const marking = new Map<string, Token[]>();
+    for (const row of rows) {
+      const token: Token = {
+        id: row["id"] as string,
+        instance_id: row["instance_id"] as string,
+        place_id: row["place_id"] as string,
+        payload: JSON.parse(row["payload_json"] as string),
+        created_at: row["created_at"] as string,
+      };
+      const existing = marking.get(token.place_id) ?? [];
+      existing.push(token);
+      marking.set(token.place_id, existing);
+    }
+    return marking;
+  }
+
+  getEnabledTransitions(instanceId: string, actorId: string): Transition[] {
+    const instance = this.getInstance(instanceId);
+    const { transitions } = this.getNetWithGraph(instance.net_id);
+    const marking = this.getMarking(instanceId);
+    const actorAuthority = this.getActorAuthority(actorId);
+
+    return transitions.filter((t) => {
+      if (actorAuthority < t.requires_authority) return false;
+      return t.consumes.every((placeId) => {
+        const tokens = marking.get(placeId);
+        return tokens != null && tokens.length > 0;
+      });
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Fire transition
+  // -----------------------------------------------------------------------
+
+  fireTransition(
+    instanceId: string,
+    transitionId: string,
+    actorId: string,
+    outputPayload: Record<string, unknown>,
+    evidence?: Evidence[],
+    reasoning?: string,
+  ): FiringResult {
+    const instance = this.getInstance(instanceId);
+    const { transitions } = this.getNetWithGraph(instance.net_id);
+    const transition = transitions.find((t) => t.id === transitionId);
+    if (!transition) throw new Error(`Transition not found: ${transitionId}`);
+
+    // Check authority
+    const actorAuthority = this.getActorAuthority(actorId);
+    const actorRoles = this.getActorRoles(actorId);
+    const actingRole = actorRoles.reduce(
+      (best, r) => (r.authority_level > (best?.authority_level ?? -1) ? r : best),
+      actorRoles[0],
+    );
+
+    if (actorAuthority < transition.requires_authority) {
+      return {
+        success: false,
+        transition_id: transitionId,
+        instance_id: instanceId,
+        tokens_consumed: [],
+        tokens_produced: [],
+        postcondition_results: {},
+        evidence: [],
+        audit_entry_id: "",
+        error: `Insufficient authority: actor has ${actorAuthority}, transition requires ${transition.requires_authority}`,
+      };
+    }
+
+    // Check tokens in input places
+    const marking = this.getMarking(instanceId);
+    for (const placeId of transition.consumes) {
+      const tokens = marking.get(placeId);
+      if (!tokens || tokens.length === 0) {
+        return {
+          success: false,
+          transition_id: transitionId,
+          instance_id: instanceId,
+          tokens_consumed: [],
+          tokens_produced: [],
+          postcondition_results: {},
+          evidence: [],
+          audit_entry_id: "",
+          error: `No token in input place '${placeId}'`,
+        };
+      }
+    }
+
+    // Snapshot marking before
+    const markingBefore: Record<string, unknown> = {};
+    for (const [placeId, tokens] of marking) {
+      markingBefore[placeId] = tokens.map((t) => t.payload);
+    }
+
+    // Consume tokens (one per input place)
+    const consumedTokens: Token[] = [];
+    for (const placeId of transition.consumes) {
+      const tokens = marking.get(placeId)!;
+      const token = tokens[0]!;
+      this.db.sqlite.prepare("DELETE FROM tokens WHERE id = ?").run(token.id);
+      consumedTokens.push(token);
+    }
+
+    // Produce tokens (one per output place)
+    const now = new Date().toISOString();
+    const producedTokens: Token[] = [];
+    for (const placeId of transition.produces) {
+      const tokenId = randomUUID();
+      this.db.sqlite
+        .prepare(
+          `INSERT INTO tokens (id, instance_id, place_id, payload_json, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(tokenId, instanceId, placeId, JSON.stringify(outputPayload), now);
+      producedTokens.push({
+        id: tokenId,
+        instance_id: instanceId,
+        place_id: placeId,
+        payload: outputPayload,
+        created_at: now,
+      });
+    }
+
+    // Snapshot marking after
+    const markingAfterMap = this.getMarking(instanceId);
+    const markingAfter: Record<string, unknown> = {};
+    for (const [placeId, tokens] of markingAfterMap) {
+      markingAfter[placeId] = tokens.map((t) => t.payload);
+    }
+
+    // Write audit entry
+    const auditEntry = this.audit.append({
+      instance_id: instanceId,
+      action: "transition_fired",
+      actor: {
+        actor_id: actorId,
+        role_id: actingRole?.id ?? "unknown",
+        authority_level: actorAuthority,
+      },
+      transition_id: transitionId,
+      marking_before: markingBefore,
+      marking_after: markingAfter,
+      evidence: evidence,
+      reasoning: reasoning,
+    });
+
+    return {
+      success: true,
+      transition_id: transitionId,
+      instance_id: instanceId,
+      tokens_consumed: consumedTokens,
+      tokens_produced: producedTokens,
+      postcondition_results: {},
+      evidence: evidence ?? [],
+      audit_entry_id: auditEntry.id,
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Judgment points
+  // -----------------------------------------------------------------------
+
+  getPendingJudgments(instanceId: string): PendingJudgment[] {
+    const instance = this.getInstance(instanceId);
+    const { net, transitions } = this.getNetWithGraph(instance.net_id);
+    const marking = this.getMarking(instanceId);
+
+    const pending: PendingJudgment[] = [];
+
+    for (const t of transitions) {
+      if (t.mode !== "judgment") continue;
+
+      const allInputsHaveTokens = t.consumes.every((placeId) => {
+        const tokens = marking.get(placeId);
+        return tokens != null && tokens.length > 0;
+      });
+      if (!allInputsHaveTokens) continue;
+
+      const tokenPayloads: Record<string, unknown>[] = [];
+      for (const placeId of t.consumes) {
+        const tokens = marking.get(placeId)!;
+        for (const token of tokens) {
+          tokenPayloads.push(token.payload);
+        }
+      }
+
+      const domain = net.domain ?? "";
+      const scope = domain ? `${domain}.${t.id}` : t.id;
+      const policies = this.getPolicies(scope);
+
+      pending.push({
+        instance_id: instanceId,
+        transition_id: t.id,
+        transition_intent: t.intent,
+        transition_mode: "judgment",
+        requires_authority: t.requires_authority,
+        token_payloads: tokenPayloads,
+        policies,
+      });
+    }
+
+    return pending;
+  }
+
+  resolveJudgment(
+    instanceId: string,
+    transitionId: string,
+    actorId: string,
+    decision: Record<string, unknown>,
+    reasoning?: string,
+    evidence?: Evidence[],
+  ): FiringResult {
+    const instance = this.getInstance(instanceId);
+    const { transitions } = this.getNetWithGraph(instance.net_id);
+    const transition = transitions.find((t) => t.id === transitionId);
+    if (!transition) throw new Error(`Transition not found: ${transitionId}`);
+    if (transition.mode !== "judgment") {
+      throw new Error(`Transition '${transitionId}' is not a judgment point (mode: ${transition.mode})`);
+    }
+
+    return this.fireTransition(instanceId, transitionId, actorId, decision, evidence, reasoning);
+  }
+
+  getHistory(instanceId: string): AuditEntry[] {
+    return this.audit.getEntries(instanceId);
   }
 
   // -----------------------------------------------------------------------
