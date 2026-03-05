@@ -2,261 +2,215 @@
 
 ## Overview
 
-Workflows are modeled as **Colored Petri Nets (CPNs)**: a formal computational model where
-state is represented as tokens flowing through a graph of places and transitions. Unlike
-sequential workflow engines, this model natively represents concurrency, non-determinism,
-and data-parameterized branching without duplicating structure.
+Workflows are modeled as **Coloured Petri Nets (CPNs)**: a formal computational model where state is represented as tokens flowing through a graph of places and transitions. Unlike sequential workflow engines, this model natively represents concurrency, non-determinism, and data-parameterized branching without duplicating structure.
+
+The core engine (`src/core/engine.ts`) implements this specification with SQLite persistence, authority enforcement, and cryptographic audit logging.
 
 ---
 
 ## Core Abstractions
 
-### Color Sets
+### Places
 
-Every place has an associated **color set** — a type constraining the tokens it may hold.
-Color sets are defined compositionally:
+A **place** represents a state or condition in the workflow. Each place has:
 
-- Primitive: `INT`, `STRING`, `BOOL`, `UNIT`
-- Product: `(A × B)` — ordered pairs
-- Sum: `A | B` — tagged union
-- List: `LIST(A)`
-- Named record: `{ field: A, field: B, ... }`
+- `id` — unique identifier within the net (e.g., `"intake"`, `"board-ready"`)
+- `description` — human-readable description of what this state means
+- `schema` — optional JSON schema constraining token payloads
 
-In practice, the color set of a place represents the *shape of context* flowing through that
-point in the workflow — document state, role assignments, policy parameters, case identifiers.
+Places are defined via `Engine.addPlace(netId, id, description, schema?)`.
 
-### Multi-sets
+### Transitions
 
-Places hold **multi-sets** (bags) of tokens — unordered collections where duplicates are
-meaningful. A place may simultaneously hold multiple tokens of the same or different colors.
+A **transition** represents an action that moves the workflow forward. Each transition declares:
 
-Notation: `2'a ++ 1'b` means two tokens of value `a` and one of value `b`.
+| Field | Type | Purpose |
+|-------|------|---------|
+| `id` | string | Unique identifier |
+| `consumes` | string[] | Input place IDs — tokens removed |
+| `produces` | string[] | Output place IDs — tokens added |
+| `guard` | string? | Expression evaluated against binding (future) |
+| `intent` | string | Natural language description of what this accomplishes |
+| `mode` | `"deterministic" \| "judgment" \| "agentic"` | Execution mode |
+| `decision_type` | DecisionType? | For judgment transitions |
+| `requires_authority` | number | Minimum authority level to fire |
+| `authorized_roles` | string[]? | Optional role whitelist |
+| `input_schema` | JsonSchema? | Expected input structure |
+| `output_schema` | JsonSchema? | Required output structure |
+| `context_sources` | string[] | Keys for context assembly |
+| `postconditions` | Postconditions | Required/desired/escalation outcomes |
+| `evidence_requirements` | EvidenceRequirement[] | Proof that must be captured |
+| `available_tools` | string[] | Tools the agent may use |
+| `timeout` | number? | Execution timeout in seconds |
 
-Formally, a multi-set over color set `C` is a function `C → ℕ`.
+Transitions are defined via `Engine.addTransition(netId, transitionDef)`, which also creates the corresponding arcs.
+
+### Arcs
+
+**Arcs** connect places to transitions (input arcs) and transitions to places (output arcs). They are created automatically when a transition is defined based on its `consumes` and `produces` arrays.
+
+- `place_to_transition` — input arc: tokens consumed from this place
+- `transition_to_place` — output arc: tokens produced into this place
+
+### Tokens
+
+A **token** represents a unit of case data at a specific place. Each token carries:
+
+- `id` — unique identifier
+- `instance_id` — which workflow instance this token belongs to
+- `place_id` — which place the token is in
+- `payload` — `Record<string, unknown>` — arbitrary structured data
+- `created_at` — timestamp
+
+Tokens are coloured: they carry payloads that represent the evolving case data as it flows through the net.
 
 ### Marking
 
-A **marking** is a snapshot of the full workflow state: a map from every place to its
-current multi-set of tokens.
+A **marking** is a snapshot of the full workflow state: a map from place IDs to their current tokens.
 
 ```
-Marking = Map<PlaceId, MultiSet<Token>>
+Marking = Map<PlaceId, Token[]>
 ```
 
-A workflow instance begins at an **initial marking** (typically a single token in a
-designated start place) and terminates when a token reaches a designated end place or
-a defined terminal condition holds.
+A workflow instance begins with a single token in a designated start place (created by `Engine.instantiate()`) and progresses as transitions fire, consuming tokens from input places and producing tokens in output places.
 
-### Arc Inscriptions
-
-Arcs carry **expressions** that evaluate to multi-sets. These expressions may reference
-the transition's free variables, binding them to token values at runtime.
-
-- Input arc inscription: declares what tokens are *consumed* from the source place
-- Output arc inscription: declares what tokens are *produced* into the target place
-
-Example: an arc inscription `(caseId, status)` consumes or produces a token that is the
-pair of the bound values of variables `caseId` and `status`.
-
-### Guards
-
-Transitions carry an optional **guard** — a boolean expression over the transition's
-free variables. A transition may only fire for a variable binding where the guard
-evaluates to `true`.
-
-Guards encode policy and precondition logic directly in the model:
-
-```
-guard: role == "approver" && amount < limit
-```
+Retrieved via `Engine.getMarking(instanceId)`.
 
 ---
 
 ## Firing Semantics
 
-Execution proceeds via **bindings**: assignments of concrete values to a transition's
-free variables.
+### Enablement
 
-A binding `(T, σ)` — transition `T` with variable assignment `σ` — is **enabled** iff:
+A transition `T` is **enabled** for actor `A` in instance `I` when:
 
-1. For every input arc of `T`, evaluating the arc inscription under `σ` yields a
-   multi-set that is *contained in* the current multi-set of that input place.
-2. The guard of `T` evaluates to `true` under `σ`.
+1. For every place in `T.consumes`, the current marking of `I` has at least one token in that place
+2. `A` has authority level ≥ `T.requires_authority` (derived from the maximum authority across all of `A`'s assigned roles)
 
-When a binding fires:
-
-1. For each input arc: subtract the arc inscription (evaluated under `σ`) from the
-   source place's multi-set.
-2. For each output arc: add the arc inscription (evaluated under `σ`) to the target
-   place's multi-set.
-
-Both steps are **atomic** — no intermediate state is observable.
-
----
-
-## Execution Strategy
-
-### Rationale
-
-The CPN formalism is declarative: it defines *what can happen*, not *in what order to
-check*. Implementations choose an execution strategy. For workflow execution (as opposed
-to exhaustive state-space verification), an **agenda-based event-driven strategy** is
-used. This is appropriate because institutional workflows are sparse — at any moment,
-only a small fraction of places hold tokens.
-
-### Agenda
-
-The executor maintains an **agenda**: a queue of candidate bindings awaiting evaluation.
-
-```
-Agenda = Queue<(TransitionId, Binding)>
-```
-
-### Token Arrival Protocol
-
-When a token arrives at place `P`:
-
-1. For each transition `T` in the output set of `P` (i.e., `P` is an input place of `T`):
-   a. Enumerate candidate bindings for `T` that are *consistent with the new token*
-   b. For each candidate binding, check whether all other input places of `T` are
-      also satisfied
-   c. Evaluate the guard
-   d. If fully enabled, enqueue `(T, binding)` onto the agenda
+Enabled transitions for an actor are found via `Engine.getEnabledTransitions(instanceId, actorId)`.
 
 ### Firing Protocol
 
-The executor dequeues `(T, σ)` from the agenda and:
+When `Engine.fireTransition(instanceId, transitionId, actorId, outputPayload)` is called:
 
-1. **Validates** the binding is still enabled (tokens may have been consumed by a
-   conflicting binding that fired since enqueue time)
-2. If invalid: discard and continue
-3. If valid: fire the binding — atomically update the marking, then run the
-   token arrival protocol for each newly produced token
+1. **Authority check** — verify actor's authority ≥ transition's `requires_authority`. If insufficient, return `FiringResult` with `success: false`.
 
-### Conflict Resolution
+2. **Token check** — verify all input places have at least one token. If any input place is empty, return `FiringResult` with `success: false`.
 
-Two bindings *conflict* if they require overlapping tokens from the same place.
-Conflicts are resolved **optimistically**: bindings are not pre-locked. Instead,
-validity is re-checked at fire time (step 1 above). A binding that fails validation
-is silently discarded; the token arrival protocol will have already enqueued
-non-conflicting alternatives if any exist.
+3. **Atomic execution** (within a SQLite transaction):
+   a. Snapshot marking before
+   b. **Consume** one token from each input place (`DELETE FROM tokens`)
+   c. **Produce** one token in each output place (`INSERT INTO tokens`) with the provided `outputPayload`
+   d. Snapshot marking after
+   e. **Audit** — append a hash-chained audit entry recording the transition, actor, markings, evidence, and reasoning
 
-For deterministic workflows (where conflicts should not arise), conflict detection
-can be promoted to a runtime assertion.
+4. **Return** `FiringResult` with consumed tokens, produced tokens, and audit entry ID.
 
----
+Both consumption and production are **atomic** — no intermediate state is observable. This is enforced by SQLite transaction wrapping.
 
-## Binding Search
+### Judgment Points
 
-Binding search is the process of finding all variable assignments `σ` that enable
-a given transition. It is implemented as a **constraint join** over the transition's
-input places.
+A **judgment point** is a transition with `mode: "judgment"`. These transitions represent decisions requiring human discretion or policy evaluation.
 
-### Algorithm
+When a judgment point becomes enabled:
 
-```
-function find_bindings(T, marking):
-    // Order input arcs by selectivity (fewest tokens first)
-    arcs = sort_by_selectivity(T.input_arcs, marking)
+- It appears in `Engine.getPendingJudgments(instanceId)`, which returns the transition context, required authority, token payloads, and applicable policies
+- It is **not** automatically fired — it awaits explicit resolution
+- Resolution happens via `Engine.resolveJudgment(instanceId, transitionId, actorId, decision, reasoning?, evidence?)`, which delegates to `fireTransition` with authority enforcement
 
-    bindings = [{}]  // start with one empty partial binding
+### Execution Modes
 
-    for arc in arcs:
-        place_tokens = marking[arc.place]
-        bindings = [
-            extend(partial, match)
-            for partial in bindings
-            for match in unify(arc.inscription, place_tokens, partial)
-        ]
-        if bindings is empty: return []
-
-    return [σ for σ in bindings if T.guard.eval(σ)]
-```
-
-The early-exit on empty `bindings` and arc ordering by selectivity prune the search
-space significantly. For workflows with bounded, finite color sets, binding search is
-always terminating and typically fast.
+| Mode | Meaning | Current behavior |
+|------|---------|-----------------|
+| `deterministic` | Mechanical step, no judgment | Fires via `fireTransition` with output payload |
+| `judgment` | Requires human/institutional discretion | Appears in `getPendingJudgments`, resolved via `resolveJudgment` |
+| `agentic` | Agent executes with tools and LLM | Currently fires via `fireTransition`; future: agent runtime consumes `WorkOrder` |
 
 ---
 
-## Concurrency Model
+## Authority Model
 
-Multiple bindings may be **concurrently enabled** if they involve disjoint sets of
-tokens. The execution model supports two modes:
+Authority is numeric and role-based:
 
-- **Interleaved**: bindings fire one at a time (sequential simulation of concurrency).
-  Sufficient for most workflow execution; simpler to implement and reason about.
-- **Maximal concurrent step**: all non-conflicting enabled bindings fire simultaneously.
-  Useful for bulk processing and faithful simulation of parallel institutional processes.
+- **Roles** have an `authority_level` (integer)
+- **Actors** are assigned to one or more roles
+- An actor's effective authority is `max(authority_level)` across all assigned roles
+- A transition's `requires_authority` is the minimum authority needed to fire it
 
-The default is interleaved execution. Concurrent steps are opt-in per workflow definition.
+This is strictly enforced: `fireTransition` and `resolveJudgment` both check authority before any state mutation.
 
 ---
 
-## Judgment Points
+## Policy Resolution
 
-A **judgment point** is a transition that cannot be automatically resolved by the
-execution engine — it requires human discretion, external input, or policy evaluation
-that is not fully encoded in the guard.
+Policies are scoped to domains and transitions via dot-separated scope strings:
 
-Judgment points are modeled as transitions with:
+- `carta-de-agua.board-decision` — specific to one transition
+- `carta-de-agua.*` — applies to all transitions in the domain
+- `*` — global
 
-- A guard encoding necessary (but not sufficient) preconditions
-- A designated **resolution type**: `approval`, `assignment`, `discretionary`, `escalation`
-- An **actor binding**: the color set variable that resolves to the responsible role or agent
+`Engine.getPolicies(scope)` resolves policies by:
+1. Matching exact scope, parent wildcards, and global
+2. Sorting by strength (constraint first) then specificity (exact match first)
 
-When a judgment point becomes enabled, the executor:
+Policies are included in `WorkOrder` objects for agent context and in `PendingJudgment` objects for human decision support.
 
-1. Does **not** automatically fire it
-2. Emits a `PendingJudgment` event with the binding context
-3. Suspends the binding in a `waiting` state
-4. Resumes firing when an external resolution is received
+---
 
-This preserves the formal execution model while delegating the actual decision to
-the appropriate human or policy layer.
+## Audit Trail
+
+Every transition firing produces an `AuditEntry` with:
+
+- Instance and transition context
+- Actor identity (actor_id, role_id, authority_level)
+- Marking snapshots (before and after)
+- Evidence array (requirement_id, type, content, timestamp)
+- Reasoning text
+- Cryptographic hash chain (`prev_hash` → SHA-256 → `entry_hash`)
+
+Chain integrity is verifiable: `AuditLog.verifyChain(instanceId)` recomputes all hashes and checks linkage.
 
 ---
 
 ## State Representation
 
-```
+```typescript
 WorkflowInstance {
-    id:           InstanceId
-    definition:   WorkflowDefinition   // the CPN structure
-    marking:      Marking              // current token distribution
-    agenda:       Queue<PendingBinding>
-    waiting:      Map<BindingId, PendingJudgment>
-    history:      Vec<FiringEvent>     // append-only audit log
-    status:       Running | Completed | Faulted | Suspended
-}
-
-FiringEvent {
-    transition:   TransitionId
-    binding:      Binding
-    consumed:     Map<PlaceId, MultiSet<Token>>
-    produced:     Map<PlaceId, MultiSet<Token>>
-    timestamp:    Instant
-    actor:        Option<ActorId>      // set for judgment points
+  id:         string          // UUID
+  net_id:     string          // which net definition
+  status:     InstanceStatus  // "running" | "completed" | "stuck" | "suspended"
+  created_at: string          // ISO-8601
+  updated_at: string          // ISO-8601
 }
 ```
 
-The history is an append-only log of all firing events. Full marking history is
-reconstructible by replaying from the initial marking.
+Runtime state is derived from the token table:
+- **Marking** = `SELECT * FROM tokens WHERE instance_id = ?`
+- **History** = `SELECT * FROM audit_entries WHERE instance_id = ? ORDER BY sequence`
+
+The audit log is an append-only record of all firing events. Full marking history is reconstructible by replaying from the initial marking.
 
 ---
 
-## Termination and Liveness
+## Validation
 
-A workflow instance **terminates** when a token reaches a designated terminal place
-and the agenda is empty.
+`validateNet(engine, netId)` checks structural properties:
 
-Standard liveness properties verifiable against the model:
+- **Orphan places** — places with no arcs (warning)
+- **Judgment transitions without policies** — judgment mode but no policies in scope (warning)
+- **Invalid place references** — transitions referencing non-existent places (error)
+- **Sourceless transitions** — transitions with no input places (warning)
 
-- **Reachability**: can a specific marking (e.g., approval granted) be reached?
-- **Deadlock freedom**: is there always at least one enabled binding from every
-  reachable non-terminal marking?
-- **Boundedness**: does any place accumulate unboundedly many tokens?
-- **Fairness**: can any transition be permanently starved?
+Validation returns `{ violations, is_valid }` where `is_valid` is false only if there are error-severity violations.
 
-These properties are checked offline against the workflow definition, not at runtime.
-Runtime execution assumes a verified definition.
+---
+
+## Future Extensions
+
+- **Guard evaluation** — guards stored as strings, need an expression language and evaluator
+- **Instance lifecycle** — automatic detection of terminal markings, status transitions
+- **Concurrent firing** — maximal concurrent step semantics for parallel institutional processes
+- **Postcondition verification** — deterministic checkers and LLM-as-judge after agent execution
+- **Net composition** — hierarchical nets where a transition can expand into a sub-net
+- **Binding search** — formal CPN binding enumeration for transitions with multiple input arcs
+- **Timed transitions** — timeout-based escalation when transitions remain unfired

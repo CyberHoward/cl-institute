@@ -1,102 +1,85 @@
 # Architecture Diagrams — Intelligent Institution Initiative
 
-A working set of Mermaid diagrams for refining the system architecture. Each diagram isolates one architectural concern.
+A working set of Mermaid diagrams for the system architecture. Each diagram isolates one architectural concern.
 
 ---
 
 ## 1. System Architecture
 
-Unified TypeScript system with core and intelligence layers.
+Unified TypeScript system with core engine and future intelligence layer.
 
 ```mermaid
 graph TB
     subgraph ts["TypeScript System"]
-        subgraph intelligence["Intelligence Layer"]
-            orch["LLM Orchestration"]
-            pi["Policy Interpreter"]
-            ic["Integration Compiler"]
-            agent["Agent Runtime"]
-
-            orch --> agent
-            pi --> agent
-            ic --> agent
+        subgraph intelligence["Intelligence Layer (future)"]
+            agent["Agent Runtime<br/><i>Consumes WorkOrders<br/>Fires transitions via Engine</i>"]
         end
 
-        subgraph core["Core Layer"]
-            access["Model Access Layer<br/><i>stateless, typed</i>"]
-            graph_eng["Petri Net Engine<br/><i>institutional model</i>"]
-            constraint["Constraint Engine<br/><i>invariant enforcement</i>"]
-            audit["Audit Log<br/><i>cryptographic chaining</i>"]
-            registry["Integration Registry<br/><i>capability declarations</i>"]
-            store["Store<br/><i>file-system persistence</i>"]
+        subgraph core["Core Layer (implemented)"]
+            engine["Engine<br/><i>Definition, runtime, query operations<br/>Authority enforcement</i>"]
+            db["SQLite DB<br/><i>12 tables, WAL mode<br/>FK enforcement</i>"]
+            audit["Audit Log<br/><i>SHA-256 hash chaining<br/>Append-only</i>"]
+            context["Context Assembly<br/><i>buildWorkOrder()<br/>9-step work order</i>"]
+            validate["Validate<br/><i>Structural checks<br/>Policy coverage</i>"]
 
-            access --> graph_eng
-            access --> constraint
-            access --> audit
-            access --> registry
-            graph_eng --> store
-            audit --> store
+            engine --> db
+            engine --> audit
+            context --> engine
+            validate --> engine
         end
 
-        agent --> access
-        pi --> access
-        ic --> access
+        agent --> context
+        agent --> engine
     end
 
-    subgraph fs["Institution Project Directory — Git Managed"]
-        toml["roles/*.toml<br/>workflows/*.toml<br/>integrations/*.toml"]
-        policies["policies/*.md"]
-        compiled["compiled/*.json"]
-        auditlog["audit/log.jsonl"]
+    subgraph ext["External (future)"]
+        claude["Claude API<br/><i>via pi-ai / pi-agent-core</i>"]
+        tools["Domain Tools<br/><i>check-documents, send-notification, etc.</i>"]
     end
 
-    store --> fs
+    agent --> claude
+    agent --> tools
 
     style intelligence fill:#e8f4f8,stroke:#2196F3
     style core fill:#fce4ec,stroke:#e91e63
-    style fs fill:#e8f5e9,stroke:#4caf50
+    style ext fill:#f5f5f5,stroke:#9e9e9e
 ```
 
 ---
 
 ## 2. Formality Spectrum
 
-Four stratified layers from hard constraints to tacit knowledge.
+Four policy strengths from hard constraints to tacit knowledge.
 
 ```mermaid
 graph LR
-    subgraph layer1["Layer 1: Constraints"]
+    subgraph layer1["Constraint"]
         c_nature["Hard rules<br/>Legal/regulatory mandates"]
-        c_repr["Typed predicates<br/>Formal logic"]
-        c_enforce["Machine-enforced<br/>Compile-time + runtime"]
+        c_enforce["Machine-enforced<br/>Included first in work orders"]
     end
 
-    subgraph layer2["Layer 2: Procedures"]
+    subgraph layer2["Procedure"]
         p_nature["Defined steps<br/>Authorized deviation"]
-        p_repr["State machines<br/>Decision graphs"]
-        p_enforce["Deterministic execution<br/>Logged overrides"]
+        p_enforce["Included in work orders<br/>Logged overrides"]
     end
 
-    subgraph layer3["Layer 3: Policies"]
-        po_nature["Intent-bearing guidance<br/>Preferences"]
-        po_repr["Structured natural language<br/>Semantic metadata"]
-        po_enforce["LLM-interpreted<br/>At decision time"]
+    subgraph layer3["Preference"]
+        po_nature["Intent-bearing guidance"]
+        po_enforce["Included in agent context"]
     end
 
-    subgraph layer4["Layer 4: Context"]
+    subgraph layer4["Context"]
         cx_nature["Tacit knowledge<br/>Institutional culture"]
-        cx_repr["Unstructured<br/>natural language"]
-        cx_enforce["LLM-referenced<br/>Advisory only"]
+        cx_enforce["Advisory only"]
     end
 
     layer1 -->|"governs"| layer2
     layer2 -->|"guided by"| layer3
     layer3 -->|"informed by"| layer4
 
-    llm["LLM as Interpreter"]
-    llm -.->|"bridges"| layer3
-    llm -.->|"bridges"| layer4
-    llm -.->|"reads"| layer2
+    llm["LLM as Interpreter<br/>(future)"]
+    llm -.->|"interprets"| layer3
+    llm -.->|"references"| layer4
 
     style layer1 fill:#ffcdd2,stroke:#e91e63
     style layer2 fill:#ffe0b2,stroke:#ff9800
@@ -107,495 +90,268 @@ graph LR
 
 ---
 
-## 3. Petri Net Execution Loop
+## 3. Engine Firing Protocol
 
-The core engine cycle: find enabled transitions, fire via agent, verify postconditions.
-
-```mermaid
-flowchart TD
-    start([Start: Initial Marking]) --> find
-
-    find["Find enabled transitions<br/><i>All input places have tokens<br/>Guard evaluates true</i>"]
-
-    find -->|"None enabled"| check_terminal
-    find -->|"Transitions found"| select
-
-    check_terminal{"Terminal<br/>marking?"}
-    check_terminal -->|"Yes"| completed([Status: Completed])
-    check_terminal -->|"No"| stuck([Status: Stuck / Deadlocked])
-
-    select["Select transition<br/><i>Priority / FIFO</i>"]
-
-    select --> gather["Gather context<br/><i>Read token payloads from input places<br/>Resolve context_sources from store</i>"]
-
-    gather --> execute["Agent Executor<br/><i>LLM + tools</i>"]
-
-    execute --> verify{"Verify<br/>postconditions"}
-
-    verify -->|"All required met"| fire["Fire transition<br/><i>Consume input tokens<br/>Produce output tokens with payload<br/>Merge payload into context store</i>"]
-    verify -->|"Required not met"| escalation{"Escalation<br/>path?"}
-
-    escalation -->|"Yes"| escalate["Trigger escalation<br/><i>Log failure + escalation event</i>"]
-    escalation -->|"No"| fail["Log failure<br/><i>Transition did not fire</i>"]
-
-    fire --> log["Append to execution log<br/><i>transition, marking before/after,<br/>agent actions, postcondition results</i>"]
-
-    log --> max_check{"Max steps<br/>reached?"}
-    max_check -->|"No"| find
-    max_check -->|"Yes"| maxsteps([Status: Max Steps])
-
-    escalate --> find
-    fail --> find
-
-    style start fill:#e8f5e9,stroke:#4caf50
-    style completed fill:#e8f5e9,stroke:#4caf50
-    style stuck fill:#ffcdd2,stroke:#e91e63
-    style maxsteps fill:#ffe0b2,stroke:#ff9800
-    style execute fill:#e8f4f8,stroke:#2196F3
-    style verify fill:#fff3e0,stroke:#ff9800
-```
-
----
-
-## 4. Agent Transition Execution
-
-What happens inside the Agent Executor when a transition fires.
-
-```mermaid
-sequenceDiagram
-    participant Engine as Petri Net Engine
-    participant Executor as Agent Executor
-    participant LLM as Claude (Sonnet)
-    participant Tools as Tool Registry
-    participant Verify as Postcondition Verifier
-
-    Engine->>Executor: executeTransition(transition, context, tools)
-
-    Note over Executor: Build system prompt from:<br/>- transition.intent<br/>- transition.postconditions<br/>- transition.mode
-
-    Note over Executor: Build context prompt from:<br/>- input token payloads<br/>- context_sources lookups
-
-    Executor->>LLM: generateText(system, context, tools)
-
-    loop Tool use loop (max 10 steps)
-        LLM->>Tools: call tool(params)
-        Tools-->>LLM: tool result
-        Note over LLM: Reason about next step<br/>given tool results
-    end
-
-    LLM-->>Executor: final text + all tool results
-
-    Executor->>Verify: verify(postconditions, executionResult)
-
-    alt Deterministic verifier exists
-        Note over Verify: Inspect tool results directly<br/>e.g., lookup-vendor returned active
-    else No deterministic verifier
-        Verify->>LLM: LLM-as-judge:<br/>"Is this postcondition satisfied?"
-        LLM-->>Verify: true / false
-    end
-
-    Verify-->>Executor: postcondition results map
-    Executor-->>Engine: ExecutionResult + postcondition results + payload
-```
-
----
-
-## 5. Postcondition Verification Strategy
-
-Two-tier verification: deterministic checks first, LLM-as-judge fallback.
-
-```mermaid
-flowchart LR
-    pc["Postcondition<br/>to verify"] --> lookup{"Deterministic<br/>verifier exists?"}
-
-    lookup -->|"Yes"| det["Deterministic Check<br/><i>Inspect tool results directly</i>"]
-    lookup -->|"No"| judge["LLM-as-Judge<br/><i>Send evidence to Claude</i>"]
-
-    det --> result_det{"Tool result<br/>matches criteria?"}
-    result_det -->|"Yes"| satisfied["Postcondition: SATISFIED"]
-    result_det -->|"No"| unsatisfied["Postcondition: NOT SATISFIED"]
-
-    judge --> prompt["Assemble evidence:<br/>- Agent reasoning<br/>- Tool calls + results<br/>- Postcondition text"]
-    prompt --> ask["Ask: 'Given this evidence,<br/>is the postcondition satisfied?'"]
-    ask --> parse["Parse response"]
-    parse --> result_judge{"true / false?"}
-    result_judge -->|"true"| satisfied
-    result_judge -->|"false"| unsatisfied
-
-    subgraph examples["Deterministic Verifier Examples"]
-        ex1["vendor-identity-confirmed:<br/>lookup-vendor returned found=true<br/>& registrationStatus=active"]
-        ex2["notification-sent:<br/>send-notification returned success=true"]
-    end
-
-    style satisfied fill:#e8f5e9,stroke:#4caf50
-    style unsatisfied fill:#ffcdd2,stroke:#e91e63
-    style det fill:#c8e6c9,stroke:#4caf50
-    style judge fill:#bbdefb,stroke:#2196f3
-    style examples fill:#f5f5f5,stroke:#9e9e9e
-```
-
----
-
-## 6. Policy Interpretation Flow
-
-How policies are gathered, scoped, and applied at a judgment point.
+How `fireTransition` works: authority check → token check → atomic consume/produce/audit.
 
 ```mermaid
 flowchart TD
-    trigger["Decision point reached<br/><i>e.g., procurement.vendor-selection</i>"]
+    call["fireTransition(instanceId, transitionId, actorId, payload)"]
 
-    trigger --> scope["Scope Resolution<br/><i>Walk hierarchy:</i><br/>procurement.vendor-selection<br/>→ procurement.*<br/>→ global"]
+    call --> auth{"Actor authority<br/>≥ requires_authority?"}
+    auth -->|"No"| reject_auth["Return: success=false<br/><i>Insufficient authority</i>"]
+    auth -->|"Yes"| tokens{"All input places<br/>have tokens?"}
+    tokens -->|"No"| reject_token["Return: success=false<br/><i>No token in input place</i>"]
+    tokens -->|"Yes"| txn
 
-    scope --> query["Query model<br/><i>policy list by scope</i>"]
-    query --> precedent["Fetch precedent<br/><i>decision history by type</i>"]
+    subgraph txn["SQLite Transaction (atomic)"]
+        snapshot_before["Snapshot marking before"]
+        snapshot_before --> consume["Consume tokens<br/><i>DELETE from input places</i>"]
+        consume --> produce["Produce tokens<br/><i>INSERT to output places<br/>with output payload</i>"]
+        produce --> snapshot_after["Snapshot marking after"]
+        snapshot_after --> audit_write["Append audit entry<br/><i>Hash-chained, with evidence</i>"]
+    end
 
-    precedent --> order["Order policies<br/><i>1. By strength: constraint → procedure → preference → context</i><br/><i>2. By specificity: exact scope → parent → global</i>"]
+    txn --> result["Return: FiringResult<br/><i>success=true, tokens consumed/produced,<br/>audit_entry_id</i>"]
 
-    order --> assemble["Assemble decision context:<br/>- Case inputs / documents<br/>- Applicable policies (ordered)<br/>- Historical precedent<br/>- Authority model<br/>- Available integrations"]
+    style txn fill:#f5f5f5,stroke:#9e9e9e
+    style reject_auth fill:#ffcdd2,stroke:#e91e63
+    style reject_token fill:#ffcdd2,stroke:#e91e63
+    style result fill:#e8f5e9,stroke:#4caf50
+```
 
-    assemble --> llm["LLM Reasoning<br/><i>Claude interprets policies<br/>against specific case</i>"]
+---
 
-    llm --> rec["Structured Recommendation"]
+## 4. Work Order Assembly
 
-    rec --> fields["Fields:<br/>- action: approve / reject / escalate / request-info<br/>- confidence: 0.0 – 1.0<br/>- reasoning: chain of reasoning<br/>- contributing_policies: which policies applied<br/>- binding_constraints: hard constraints that must hold<br/>- suggested_conditions: if conditional approval"]
+The 9-step context assembly from `buildWorkOrder()`.
 
-    fields --> record["Record decision<br/><i>Audit-logged with full trace</i>"]
+```mermaid
+flowchart TD
+    trigger["buildWorkOrder(engine, instanceId, transitionId)"]
+
+    trigger --> t["Load Transition definition"]
+    t --> tokens["1. Read token payloads<br/>from consumed places"]
+    tokens --> schema_in["2. Get input_schema"]
+    schema_in --> policies["3. Resolve policies by scope<br/><i>domain.transitionId → domain.* → *<br/>Ordered: constraint → context</i>"]
+    policies --> ctx["4. Get context_sources"]
+    ctx --> schema_out["5. Get output_schema"]
+    schema_out --> post["6. Get postconditions<br/><i>required, desired, escalation</i>"]
+    post --> evidence["7. Get evidence_requirements"]
+    evidence --> tools["8. Get available_tools"]
+    tools --> wo["9. Return WorkOrder"]
+
+    wo --> agent["→ Agent Runtime<br/><i>Structured context for<br/>LLM goal construction</i>"]
 
     style trigger fill:#fff3e0,stroke:#ff9800
-    style llm fill:#e8f4f8,stroke:#2196F3
-    style rec fill:#e8f5e9,stroke:#4caf50
+    style wo fill:#e8f5e9,stroke:#4caf50
+    style agent fill:#e8f4f8,stroke:#2196F3
 ```
 
 ---
 
-## 7. Edge Compilation Pipeline
+## 5. Policy Scope Resolution
 
-How natural-language edge specs become executable automations.
+How policies are gathered and ordered at a judgment point.
 
 ```mermaid
-flowchart LR
-    edge["Edge Specification<br/><i>Natural language intent:<br/>'Generate PO from approved template,<br/>route for signature'</i>"]
+flowchart TD
+    query["getPolicies('carta-de-agua.board-decision')"]
 
-    edge --> read_reg["Read integration registry<br/><code>inst integration list --format json</code>"]
+    query --> scopes["Build scope list:<br/>1. carta-de-agua.board-decision (exact)<br/>2. carta-de-agua.* (parent)<br/>3. * (global)"]
 
-    read_reg --> match["LLM Capability Matching<br/><i>Map intent → available capabilities</i><br/><i>e.g., docusign.route_for_signature,<br/>sap.create_purchase_order</i>"]
+    scopes --> fetch["SELECT * FROM policies<br/>WHERE scope IN (exact, parent, global)"]
 
-    match --> resolve["Resolved Capabilities<br/><i>Each with confidence score</i>"]
+    fetch --> order["Sort by:<br/>1. Strength: constraint → procedure → preference → context<br/>2. Specificity: exact → parent → global"]
 
-    resolve --> target{"Compilation Target"}
+    order --> result["Ordered Policy[]<br/><i>Constraints first, most specific first</i>"]
 
-    target -->|"n8n"| n8n["N8n Plugin<br/><i>Generate workflow JSON</i><br/>Trigger → Integration → Conditional → Error"]
-    target -->|"api-direct"| api["API Direct Plugin<br/><i>Generate API call sequence</i>"]
-    target -->|"human-checklist"| checklist["Checklist Plugin<br/><i>Generate Markdown checklist</i><br/>Steps, policy reminders, sign-off"]
-
-    n8n --> validate["Validate output<br/><i>All referenced capabilities exist<br/>in integration registry</i>"]
-    api --> validate
-    checklist --> validate
-
-    validate --> store["Store compiled artifact<br/><i>compiled/procurement/n8n/...</i><br/><i>Artifact, not source of truth</i>"]
-
-    style edge fill:#fff3e0,stroke:#ff9800
-    style match fill:#e8f4f8,stroke:#2196F3
-    style n8n fill:#e8f5e9,stroke:#4caf50
-    style api fill:#e8f5e9,stroke:#4caf50
-    style checklist fill:#e8f5e9,stroke:#4caf50
+    style query fill:#fff3e0,stroke:#ff9800
+    style result fill:#e8f5e9,stroke:#4caf50
 ```
 
 ---
 
-## 8. Vendor Onboarding — Petri Net
+## 6. Carta de Agua — Petri Net
 
-The concrete spike scenario as a Petri net with transition modes and tool bindings.
+The ASADA water availability letter process encoded as a CPN.
 
 ```mermaid
 graph LR
-    p1((("request-<br/>submitted<br/>🔵")))
+    p1((("intake<br/>🔵")))
+    t1["receive-request<br/><i>mode: deterministic<br/>authority: 2</i>"]
+    p2((("documents-<br/>pending")))
+    t2["check-completeness<br/><i>mode: agentic<br/>authority: 2</i>"]
+    p3((("documents-<br/>complete")))
+    t3["triage-case<br/><i>mode: judgment<br/>authority: 2</i>"]
+    p4((("triaged")))
+    t4["check-scarcity<br/><i>mode: deterministic<br/>authority: 2</i>"]
+    p5((("technical-<br/>review-ready")))
+    t5["compile-board-<br/>packet<br/><i>mode: agentic<br/>authority: 2</i>"]
+    p6((("board-<br/>ready")))
+    t6["board-decision<br/><i>mode: judgment<br/>authority: 4 🔒</i>"]
+    p7((("decided")))
+    t7["deliver-decision<br/><i>mode: agentic<br/>authority: 2</i>"]
+    p8((("delivered<br/>🏁")))
 
-    t1["verify-vendor<br/><i>mode: deterministic</i><br/><i>tools: lookup-vendor</i>"]
-
-    p2((("vendor-<br/>verified")))
-
-    t2["assess-risk<br/><i>mode: judgment</i><br/><i>tools: generate-document</i>"]
-
-    p3((("risk-<br/>assessed")))
-
-    t3["notify-compliance<br/><i>mode: agentic</i><br/><i>tools: send-notification</i>"]
-
-    p4((("compliance-<br/>notified")))
-
-    t4["approve-onboarding<br/><i>mode: judgment</i><br/><i>tools: generate-document</i>"]
-
-    p5((("onboarding-<br/>approved<br/>🏁")))
-
-    p1 -->|"consumes"| t1
-    t1 -->|"produces<br/>+ vendor profile payload"| p2
-    p2 -->|"consumes"| t2
-    t2 -->|"produces<br/>+ risk assessment payload"| p3
-    p3 -->|"consumes"| t3
-    t3 -->|"produces<br/>+ notification confirmation"| p4
-    p4 -->|"consumes"| t4
-    t4 -->|"produces<br/>+ approval decision payload"| p5
+    p1 --> t1 --> p2 --> t2 --> p3 --> t3 --> p4 --> t4 --> p5 --> t5 --> p6 --> t6 --> p7 --> t7 --> p8
 
     style p1 fill:#bbdefb,stroke:#2196f3
-    style p2 fill:#f5f5f5,stroke:#9e9e9e
-    style p3 fill:#f5f5f5,stroke:#9e9e9e
-    style p4 fill:#f5f5f5,stroke:#9e9e9e
-    style p5 fill:#e8f5e9,stroke:#4caf50
+    style p8 fill:#e8f5e9,stroke:#4caf50
     style t1 fill:#fff3e0,stroke:#ff9800
-    style t2 fill:#fce4ec,stroke:#e91e63
-    style t3 fill:#e8f4f8,stroke:#2196F3
-    style t4 fill:#fce4ec,stroke:#e91e63
+    style t2 fill:#e8f4f8,stroke:#2196F3
+    style t3 fill:#fce4ec,stroke:#e91e63
+    style t4 fill:#fff3e0,stroke:#ff9800
+    style t5 fill:#e8f4f8,stroke:#2196F3
+    style t6 fill:#fce4ec,stroke:#e91e63
+    style t7 fill:#e8f4f8,stroke:#2196F3
 ```
+
+**Legend:** 🟠 deterministic | 🔵 agentic | 🔴 judgment | 🔒 board-only (authority 4)
 
 ---
 
-## 9. Token Payload Data Flow
+## 7. Authority Model
 
-How data propagates through the net via colored tokens.
-
-```mermaid
-sequenceDiagram
-    participant P1 as request-submitted
-    participant T1 as verify-vendor
-    participant P2 as vendor-verified
-    participant T2 as assess-risk
-    participant P3 as risk-assessed
-    participant T3 as notify-compliance
-    participant P4 as compliance-notified
-    participant T4 as approve-onboarding
-    participant P5 as onboarding-approved
-    participant CS as Context Store
-
-    Note over P1: Token: { vendorName: "Acme Corp",<br/>requestedBy: "procurement-lead" }
-
-    P1->>T1: consume token
-    T1->>T1: lookup-vendor("Acme Corp")
-    T1->>P2: produce token + payload
-    T1->>CS: merge { vendor: { name, regNumber, status, certs } }
-
-    Note over P2: Token: { vendor: { name: "Acme Corp",<br/>regNumber: "REG-2024-1234",<br/>status: "active", certs: [...] } }
-
-    P2->>T2: consume token
-    Note over T2: context_sources: ["vendor", "risk-policy"]
-    T2->>CS: read vendor data + risk-policy.md
-    T2->>T2: generate-document(risk assessment)
-    T2->>P3: produce token + payload
-    T2->>CS: merge { riskLevel: "medium", riskFactors: [...] }
-
-    Note over P3: Token: { riskLevel: "medium",<br/>riskFactors: [...],<br/>assessmentDoc: "..." }
-
-    P3->>T3: consume token
-    Note over T3: Reads riskLevel to choose channel
-    T3->>T3: send-notification(Slack, medium risk)
-    T3->>P4: produce token + payload
-    T3->>CS: merge { notificationChannel: "slack", notifiedAt: "..." }
-
-    P4->>T4: consume token
-    Note over T4: context_sources: ["vendor", "riskLevel", "riskFactors"]
-    T4->>CS: read all accumulated context
-    T4->>T4: generate-document(approval recommendation)
-    T4->>P5: produce token + payload
-
-    Note over P5: Token: { decision: "conditional-approval",<br/>conditions: [...], rationale: "..." }
-```
-
----
-
-## 10. Progressive Adoption Stages
-
-The four stages from codification to delegated agency.
-
-```mermaid
-graph TD
-    subgraph s1["Stage 1: Codification"]
-        s1a["Define institutional model<br/><i>Roles, authority, decisions, policies</i>"]
-        s1b["Version control with git"]
-        s1c["inst workflow validate"]
-        s1d["Edge specs → human checklists"]
-        s1val["Value: Clarity + traceability"]
-    end
-
-    subgraph s2["Stage 2: Decision Support"]
-        s2a["Add TypeScript + LLM layer"]
-        s2b["Context assembly at decision points"]
-        s2c["Policy + precedent surfacing"]
-        s2d["Structured recommendations"]
-        s2val["Value: Better-informed human decisions"]
-    end
-
-    subgraph s3["Stage 3: Partial Automation"]
-        s3a["Add integration registry"]
-        s3b["Edge specs → n8n / API automations"]
-        s3c["Deterministic steps run automatically"]
-        s3d["Humans still make judgments"]
-        s3val["Value: Reduced mechanical work"]
-    end
-
-    subgraph s4["Stage 4: Delegated Agency"]
-        s4a["Agent operates with institutional authority"]
-        s4b["Defined decision types delegated to AI"]
-        s4c["Human oversight for exceptions"]
-        s4d["Overrides logged + inform refinement"]
-        s4val["Value: Scalable institutional judgment"]
-    end
-
-    s1 -->|"+ TypeScript layer"| s2
-    s2 -->|"+ Integrations"| s3
-    s3 -->|"+ Agent authority"| s4
-
-    style s1 fill:#e8f5e9,stroke:#4caf50
-    style s2 fill:#c8e6c9,stroke:#4caf50
-    style s3 fill:#bbdefb,stroke:#2196f3
-    style s4 fill:#e8f4f8,stroke:#2196F3
-```
-
----
-
-## 11. Decision Point Anatomy
-
-The components of a judgment point and their relationships.
+How actors, roles, and authority levels gate transition firing.
 
 ```mermaid
 graph TB
-    dp["Judgment Point<br/><i>(Decision Node)</i>"]
+    subgraph institution["ASADA Playas de Nosara"]
+        subgraph roles["Roles"]
+            admin["administrator<br/><i>authority: 2</i>"]
+            tech["technical-operator<br/><i>authority: 2</i>"]
+            pres["president<br/><i>authority: 3</i>"]
+            board["junta-directiva<br/><i>authority: 4</i>"]
+        end
 
-    dp --> dt["Decision Type<br/><i>approval | classification |<br/>prioritization | allocation |<br/>exception_handling</i>"]
+        subgraph actors["Actors"]
+            carlos["Don Carlos<br/><i>type: human</i>"]
+            bot["carta-agent<br/><i>type: agent</i>"]
+            junta["Board<br/><i>type: human</i>"]
+        end
 
-    dp --> inputs["Inputs<br/><i>Documents, data,<br/>prior decisions, context</i>"]
+        carlos -.->|"has role"| admin
+        bot -.->|"has role"| admin
+        junta -.->|"has role"| board
+    end
 
-    dp --> gov["Governing Policies<br/><i>Scoped by domain + type</i><br/><i>Ordered: constraint → context</i>"]
+    subgraph transitions["Transition Access"]
+        t_admin["check-completeness<br/>compile-board-packet<br/>deliver-decision<br/><i>requires_authority: 2</i>"]
+        t_board["board-decision<br/><i>requires_authority: 4</i>"]
+    end
 
-    dp --> auth["Authority Model<br/><i>Required level<br/>Delegation rules<br/>Escalation paths</i>"]
+    carlos -->|"authority 2 ✅"| t_admin
+    carlos -->|"authority 2 ❌"| t_board
+    junta -->|"authority 4 ✅"| t_board
 
-    dp --> prec["Precedent<br/><i>Historical decisions<br/>of same type</i>"]
+    style roles fill:#f5f5f5,stroke:#9e9e9e
+    style actors fill:#e8f5e9,stroke:#4caf50
+    style t_board fill:#fce4ec,stroke:#e91e63
+```
 
-    dp --> out["Output Schema<br/><i>approve/reject | ranking |<br/>modified doc | routing choice</i>"]
+---
 
-    dp --> trail["Accountability Trail<br/><i>Who decided, when,<br/>based on what, reasoning</i>"]
+## 8. Audit Chain
 
-    gov --> l1["Layer 1: Constraints<br/><i>Must hold — blocks if violated</i>"]
-    gov --> l2["Layer 2: Procedures<br/><i>Follow unless overridden</i>"]
-    gov --> l3["Layer 3: Policies<br/><i>LLM interprets guidance</i>"]
-    gov --> l4["Layer 4: Context<br/><i>Advisory — institutional culture</i>"]
+Cryptographic hash chaining for tamper-evident audit trail.
 
-    trail --> audit_log["Audit Log<br/><i>Cryptographically chained<br/>Append-only</i>"]
+```mermaid
+graph LR
+    e1["Entry 1<br/><i>instance_created</i><br/>prev_hash: GENESIS<br/>hash: abc123..."]
+    e2["Entry 2<br/><i>transition_fired</i><br/>prev_hash: abc123...<br/>hash: def456..."]
+    e3["Entry 3<br/><i>transition_fired</i><br/>prev_hash: def456...<br/>hash: ghi789..."]
+
+    e1 -->|"hash chain"| e2 -->|"hash chain"| e3
+
+    verify["verifyChain()<br/><i>Recompute each hash<br/>Verify prev_hash links</i>"]
+    verify -.-> e1
+    verify -.-> e2
+    verify -.-> e3
+
+    style e1 fill:#bbdefb,stroke:#2196f3
+    style e2 fill:#bbdefb,stroke:#2196f3
+    style e3 fill:#bbdefb,stroke:#2196f3
+    style verify fill:#e8f5e9,stroke:#4caf50
+```
+
+---
+
+## 9. Decision Point Anatomy
+
+The components of a judgment transition.
+
+```mermaid
+graph TB
+    dp["Judgment Transition"]
+
+    dp --> dt["decision_type<br/><i>approval | classification |<br/>prioritization | allocation |<br/>exception_handling</i>"]
+
+    dp --> inputs["Token Payloads<br/><i>From consumed places</i>"]
+
+    dp --> gov["Policies<br/><i>Resolved by scope<br/>Ordered: constraint → context</i>"]
+
+    dp --> auth["requires_authority<br/><i>Numeric level<br/>Checked against actor roles</i>"]
+
+    dp --> out["output_schema<br/><i>What the decision produces</i>"]
+
+    dp --> evidence["evidence_requirements<br/><i>artifact | reference | attestation</i>"]
+
+    dp --> post["postconditions<br/><i>required / desired / escalation</i>"]
+
+    dp --> trail["Audit Entry<br/><i>Hash-chained, with evidence,<br/>reasoning, marking snapshots</i>"]
 
     style dp fill:#fff3e0,stroke:#ff9800
     style auth fill:#ffcdd2,stroke:#e91e63
     style gov fill:#c8e6c9,stroke:#4caf50
-    style audit_log fill:#bbdefb,stroke:#2196f3
+    style trail fill:#bbdefb,stroke:#2196f3
 ```
 
 ---
 
-## 12. CPN Formal Execution — Agenda-Based Strategy
-
-The formal workflow execution model from the CPN specification.
-
-```mermaid
-flowchart TD
-    arrive["Token arrives at Place P"]
-
-    arrive --> enum["For each transition T<br/>where P is an input place"]
-
-    enum --> bind["Enumerate candidate bindings<br/><i>Constraint join over input arcs<br/>Ordered by selectivity</i>"]
-
-    bind --> check_inputs{"All input places<br/>of T satisfied?"}
-    check_inputs -->|"No"| skip["Skip this binding"]
-    check_inputs -->|"Yes"| guard{"Guard evaluates<br/>true?"}
-    guard -->|"No"| skip
-    guard -->|"Yes"| enqueue["Enqueue (T, binding)<br/>onto agenda"]
-
-    subgraph firing["Firing Protocol"]
-        dequeue["Dequeue (T, σ) from agenda"]
-        dequeue --> revalidate{"Binding still<br/>valid?<br/><i>(tokens may have been<br/>consumed since enqueue)</i>"}
-        revalidate -->|"No"| discard["Discard binding"]
-        revalidate -->|"Yes"| is_judgment{"Judgment<br/>point?"}
-        is_judgment -->|"No"| fire["Fire: atomically update marking<br/><i>Subtract input arcs (evaluated under σ)<br/>Add output arcs (evaluated under σ)</i>"]
-        is_judgment -->|"Yes"| suspend["Emit PendingJudgment<br/>Suspend in waiting state"]
-        suspend --> external["Await external resolution<br/><i>Human / Agent / Policy layer</i>"]
-        external --> fire
-        fire --> propagate["Run token arrival protocol<br/>for each newly produced token"]
-    end
-
-    enqueue --> dequeue
-
-    subgraph conflict["Conflict Resolution"]
-        note["Optimistic: no pre-locking<br/>Re-validate at fire time<br/>Silently discard invalid bindings"]
-    end
-
-    style arrive fill:#e8f5e9,stroke:#4caf50
-    style firing fill:#f5f5f5,stroke:#9e9e9e
-    style conflict fill:#fff3e0,stroke:#ff9800
-    style suspend fill:#fce4ec,stroke:#e91e63
-```
-
----
-
-## 13. Component Dependency Map
-
-How the TypeScript modules depend on each other.
+## 10. Component Dependency Map
 
 ```mermaid
 graph BT
-    subgraph core["Core Layer"]
-        access["Model Access Layer<br/><i>Typed model operations</i>"]
-        engine["Petri Net Engine<br/><i>Execution, marking</i>"]
+    subgraph core["Core Layer — src/core/"]
+        types["types.ts<br/><i>25+ types</i>"]
+        db["db.ts<br/><i>SQLite schema</i>"]
+        engine["engine.ts<br/><i>Engine class</i>"]
+        audit["audit.ts<br/><i>AuditLog class</i>"]
+        context["context.ts<br/><i>buildWorkOrder()</i>"]
+        validate["validate.ts<br/><i>validateNet()</i>"]
+        idx["index.ts<br/><i>barrel export</i>"]
+
+        engine --> db
+        engine --> audit
+        engine --> types
+        audit --> db
+        audit --> types
+        context --> engine
+        context --> types
+        validate --> engine
+        validate --> types
+        db --> types
+        idx --> engine
+        idx --> audit
+        idx --> context
+        idx --> validate
     end
 
-    subgraph ts["Intelligence Layer"]
-        orch["LLM Orchestration<br/><i>Prompt construction,<br/>conversation state</i>"]
-        pi["Policy Interpreter<br/><i>Scope resolution,<br/>LLM reasoning</i>"]
-        ic["Integration Compiler<br/><i>Edge → automation</i>"]
-        agent["Agent Runtime<br/><i>Decision loop,<br/>authority checks</i>"]
-
-        subgraph targets["Compilation Targets"]
-            n8n["n8n"]
-            api["API Direct"]
-            checklist["Human Checklist"]
-        end
+    subgraph future["Intelligence Layer (future)"]
+        agent["Agent Runtime"]
     end
 
-    orch --> access
-    pi --> access
-    pi --> orch
-    ic --> access
-    ic --> orch
-    ic --> targets
-    agent --> access
+    agent --> context
     agent --> engine
-    agent --> orch
-    agent --> pi
 
-    subgraph ext["External"]
-        claude["Claude API<br/><i>via pi-ai / pi-agent-core</i>"]
-        integrations["External Integrations<br/><i>DocuSign, SAP, Slack, ...</i>"]
+    subgraph ext["External (future)"]
+        claude["Claude API<br/><i>pi-ai / pi-agent-core</i>"]
     end
 
-    orch --> claude
-    n8n --> integrations
-    api --> integrations
+    agent --> claude
 
     style core fill:#fce4ec,stroke:#e91e63
-    style ts fill:#e8f4f8,stroke:#2196F3
-    style targets fill:#e8f5e9,stroke:#4caf50
+    style future fill:#e8f4f8,stroke:#2196F3
     style ext fill:#f5f5f5,stroke:#9e9e9e
 ```
-
----
-
-## Notes for Refinement
-
-**Open questions these diagrams surface:**
-
-1. **Diagram 3 (Execution Loop)**: The current spike uses simple FIFO selection. The formal CPN spec (Diagram 12) uses agenda-based execution. When does the spike engine evolve to agenda-based execution?
-
-2. **Diagram 6 (Policy Interpretation)**: Policy conflict resolution is shown as simple ordering. Should there be an explicit conflict detection + LLM-mediated synthesis step?
-
-3. **Diagram 7 (Edge Compilation)**: The "validate" step checks capabilities exist. Should it also check that the generated automation satisfies the edge's postconditions?
-
-4. **Diagram 8 (Vendor Onboarding)**: This is a linear net. What does a branching scenario look like? (e.g., high-risk vendor triggers additional review path)
-
-5. **Diagram 12 (CPN Formal Execution)**: Judgment points suspend and await external resolution. How does this interact with the Agent Runtime? Is the agent "external" from the engine's perspective?
-
-6. **Missing diagram**: Multi-workflow interaction — how do tokens or decisions in one workflow affect another?
