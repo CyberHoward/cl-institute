@@ -2,7 +2,7 @@
 rust/target/
 
 # TypeScript
-typescript/node_modules/
+node_modules/
 typescript/dist/
 
 # OS

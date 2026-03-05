@@ -1,0 +1,20 @@
+{
+  "name": "iii-spike",
+  "version": "0.1.0",
+  "description": "Spike: Petri Net Agent Execution Boundary",
+  "type": "module",
+  "scripts": {
+    "start": "tsx --env-file=.env src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mariozechner/pi-agent-core": "^0.56.1",
+    "@mariozechner/pi-ai": "^0.56.1",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
