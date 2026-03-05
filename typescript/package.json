@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "spike": "tsx --env-file=.env src/spike/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,11 +15,13 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "execa": "^9.5.2",
+    "@mariozechner/pi-agent-core": "^0.56.1",
+    "@mariozechner/pi-ai": "^0.56.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
+    "tsx": "^4.0.0",
     "typescript": "^5.9.3"
   }
 }

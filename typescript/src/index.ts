@@ -1,14 +1,16 @@
 /**
  * @clinstitute/typescript
  *
- * TypeScript intelligence layer for the Intelligent Institution Initiative.
+ * TypeScript system for the Intelligent Institution Initiative.
  *
- * This package provides AI-driven policy interpretation, integration compilation,
- * and autonomous agent operation on top of the Rust `inst` CLI core.
+ * This package provides the institutional model, Petri net execution engine,
+ * AI-driven policy interpretation, integration compilation, and autonomous
+ * agent operation.
  *
  * Modules:
- * - types/          -- TypeScript interfaces mirroring the Rust model
- * - cli-bridge/     -- CLI invocation, JSON parsing (the boundary)
+ * - types/          -- Core type definitions
+ * - spike/          -- Petri net execution engine (spike)
+ * - cli-bridge/     -- Model access layer
  * - orchestration/  -- LLM prompt management, conversation state
  * - policy-interpreter/ -- Policy assembly, LLM reasoning for decisions
  * - integration-compiler/ -- Edge specification -> automation compilation
@@ -50,8 +52,8 @@ export type {
   ChainVerificationError,
 } from "./types/index.js";
 
-// CLI Bridge
-export { CliBridge, CliError, CliParseError } from "./cli-bridge/index.js";
+// Model Access Layer
+export { CliBridge, ModelError } from "./cli-bridge/index.js";
 export type { CliBridgeOptions } from "./cli-bridge/index.js";
 
 // Orchestration

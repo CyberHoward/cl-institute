@@ -1,8 +1,8 @@
 /**
  * Type definitions for the Intelligent Institution model.
  *
- * These interfaces mirror the Rust model types from `inst-model` and related crates.
- * They represent the JSON serialization format produced by the `inst` CLI.
+ * These interfaces define the institutional model's type system.
+ * They represent the canonical serialization format for the model.
  * All UUIDs are represented as strings in JSON output.
  * All timestamps are ISO-8601 strings.
  */

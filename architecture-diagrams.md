@@ -4,44 +4,43 @@ A working set of Mermaid diagrams for refining the system architecture. Each dia
 
 ---
 
-## 1. Hybrid System Architecture
+## 1. System Architecture
 
-The Rust/TypeScript boundary with CLI as the contract.
+Unified TypeScript system with core and intelligence layers.
 
 ```mermaid
 graph TB
-    subgraph ts["TypeScript Layer — Intelligence"]
-        orch["LLM Orchestration"]
-        pi["Policy Interpreter"]
-        ic["Integration Compiler"]
-        agent["Agent Runtime"]
+    subgraph ts["TypeScript System"]
+        subgraph intelligence["Intelligence Layer"]
+            orch["LLM Orchestration"]
+            pi["Policy Interpreter"]
+            ic["Integration Compiler"]
+            agent["Agent Runtime"]
 
-        orch --> agent
-        pi --> agent
-        ic --> agent
-    end
+            orch --> agent
+            pi --> agent
+            ic --> agent
+        end
 
-    subgraph boundary["CLI Boundary — JSON Protocol"]
-        cli["inst CLI<br/><i>stateless, transactional</i>"]
-    end
+        subgraph core["Core Layer"]
+            access["Model Access Layer<br/><i>stateless, typed</i>"]
+            graph_eng["Petri Net Engine<br/><i>institutional model</i>"]
+            constraint["Constraint Engine<br/><i>invariant enforcement</i>"]
+            audit["Audit Log<br/><i>cryptographic chaining</i>"]
+            registry["Integration Registry<br/><i>capability declarations</i>"]
+            store["Store<br/><i>file-system persistence</i>"]
 
-    agent -->|"spawns process<br/>parses JSON"| cli
-    pi -->|"inst policy list --format json"| cli
-    ic -->|"inst integration list --format json"| cli
+            access --> graph_eng
+            access --> constraint
+            access --> audit
+            access --> registry
+            graph_eng --> store
+            audit --> store
+        end
 
-    subgraph rust["Rust Core — Correctness"]
-        graph_eng["Graph Engine<br/><i>institutional model</i>"]
-        constraint["Constraint Engine<br/><i>invariant enforcement</i>"]
-        audit["Audit Log<br/><i>cryptographic chaining</i>"]
-        registry["Integration Registry<br/><i>capability declarations</i>"]
-        store["Store<br/><i>file-system persistence</i>"]
-
-        cli --> graph_eng
-        cli --> constraint
-        cli --> audit
-        cli --> registry
-        graph_eng --> store
-        audit --> store
+        agent --> access
+        pi --> access
+        ic --> access
     end
 
     subgraph fs["Institution Project Directory — Git Managed"]
@@ -53,9 +52,8 @@ graph TB
 
     store --> fs
 
-    style ts fill:#e8f4f8,stroke:#2196F3
-    style rust fill:#fce4ec,stroke:#e91e63
-    style boundary fill:#fff3e0,stroke:#ff9800
+    style intelligence fill:#e8f4f8,stroke:#2196F3
+    style core fill:#fce4ec,stroke:#e91e63
     style fs fill:#e8f5e9,stroke:#4caf50
 ```
 
@@ -248,8 +246,8 @@ flowchart TD
 
     trigger --> scope["Scope Resolution<br/><i>Walk hierarchy:</i><br/>procurement.vendor-selection<br/>→ procurement.*<br/>→ global"]
 
-    scope --> query["Query Rust core<br/><code>inst policy list --scope ... --format json</code>"]
-    query --> precedent["Fetch precedent<br/><code>inst decision history --type ... --format json</code>"]
+    scope --> query["Query model<br/><i>policy list by scope</i>"]
+    query --> precedent["Fetch precedent<br/><i>decision history by type</i>"]
 
     precedent --> order["Order policies<br/><i>1. By strength: constraint → procedure → preference → context</i><br/><i>2. By specificity: exact scope → parent → global</i>"]
 
@@ -261,7 +259,7 @@ flowchart TD
 
     rec --> fields["Fields:<br/>- action: approve / reject / escalate / request-info<br/>- confidence: 0.0 – 1.0<br/>- reasoning: chain of reasoning<br/>- contributing_policies: which policies applied<br/>- binding_constraints: hard constraints that must hold<br/>- suggested_conditions: if conditional approval"]
 
-    fields --> record["Record via CLI<br/><code>inst decision record ...</code><br/><i>Audit-logged with full trace</i>"]
+    fields --> record["Record decision<br/><i>Audit-logged with full trace</i>"]
 
     style trigger fill:#fff3e0,stroke:#ff9800
     style llm fill:#e8f4f8,stroke:#2196F3
@@ -536,16 +534,16 @@ flowchart TD
 
 ## 13. Component Dependency Map
 
-How the TypeScript modules depend on each other and the Rust core.
+How the TypeScript modules depend on each other.
 
 ```mermaid
 graph BT
-    subgraph rust["Rust Core (via CLI)"]
-        cli["inst CLI"]
+    subgraph core["Core Layer"]
+        access["Model Access Layer<br/><i>Typed model operations</i>"]
+        engine["Petri Net Engine<br/><i>Execution, marking</i>"]
     end
 
-    subgraph ts["TypeScript Layer"]
-        bridge["CLI Bridge<br/><i>Spawns inst, parses JSON</i>"]
+    subgraph ts["Intelligence Layer"]
         orch["LLM Orchestration<br/><i>Prompt construction,<br/>conversation state</i>"]
         pi["Policy Interpreter<br/><i>Scope resolution,<br/>LLM reasoning</i>"]
         ic["Integration Compiler<br/><i>Edge → automation</i>"]
@@ -558,19 +556,19 @@ graph BT
         end
     end
 
-    bridge --> cli
-    orch --> bridge
-    pi --> bridge
+    orch --> access
+    pi --> access
     pi --> orch
-    ic --> bridge
+    ic --> access
     ic --> orch
     ic --> targets
-    agent --> bridge
+    agent --> access
+    agent --> engine
     agent --> orch
     agent --> pi
 
     subgraph ext["External"]
-        claude["Claude API<br/><i>via Vercel AI SDK</i>"]
+        claude["Claude API<br/><i>via pi-ai / pi-agent-core</i>"]
         integrations["External Integrations<br/><i>DocuSign, SAP, Slack, ...</i>"]
     end
 
@@ -578,7 +576,7 @@ graph BT
     n8n --> integrations
     api --> integrations
 
-    style rust fill:#fce4ec,stroke:#e91e63
+    style core fill:#fce4ec,stroke:#e91e63
     style ts fill:#e8f4f8,stroke:#2196F3
     style targets fill:#e8f5e9,stroke:#4caf50
     style ext fill:#f5f5f5,stroke:#9e9e9e
@@ -590,7 +588,7 @@ graph BT
 
 **Open questions these diagrams surface:**
 
-1. **Diagram 3 (Execution Loop)**: The current spike uses simple FIFO selection. The formal CPN spec (Diagram 12) uses agenda-based execution. Where does the transition happen? Is the spike engine replaced by the Rust CPN engine, or do they coexist?
+1. **Diagram 3 (Execution Loop)**: The current spike uses simple FIFO selection. The formal CPN spec (Diagram 12) uses agenda-based execution. When does the spike engine evolve to agenda-based execution?
 
 2. **Diagram 6 (Policy Interpretation)**: Policy conflict resolution is shown as simple ordering. Should there be an explicit conflict detection + LLM-mediated synthesis step?
 
@@ -600,6 +598,4 @@ graph BT
 
 5. **Diagram 12 (CPN Formal Execution)**: Judgment points suspend and await external resolution. How does this interact with the Agent Runtime? Is the agent "external" from the engine's perspective?
 
-6. **Missing diagram**: The Rust crate dependency structure (inst-model → inst-constraint → inst-store → inst-cli) might warrant its own diagram.
-
-7. **Missing diagram**: Multi-workflow interaction — how do tokens or decisions in one workflow affect another?
+6. **Missing diagram**: Multi-workflow interaction — how do tokens or decisions in one workflow affect another?

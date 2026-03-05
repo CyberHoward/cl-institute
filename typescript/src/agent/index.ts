@@ -18,7 +18,7 @@
  * - policy-interpreter/ for policy assembly and interpretation
  *
  * Architecture note: the agent is a TypeScript process that communicates
- * with the Rust core exclusively through CLI invocations. It does not
+ * with the institutional model through the model access layer. It does not
  * have direct database access.
  */
 

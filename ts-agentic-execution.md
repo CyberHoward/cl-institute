@@ -343,7 +343,7 @@ This is the actual research. The code is just the test harness.
 
 ## Later (not in this spike)
 
-- Swap the JS engine for the Rust Petri net core
+- Evolve the spike engine into the production Petri net core
 - Add MCP tools instead of hardcoded AI SDK tools
 - Concurrent transition firing
 - Persistent marking state
