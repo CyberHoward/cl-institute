@@ -589,63 +589,74 @@ export class Engine {
       }
     }
 
-    // Snapshot marking before
-    const markingBefore: Record<string, unknown> = {};
-    for (const [placeId, tokens] of marking) {
-      markingBefore[placeId] = tokens.map((t) => t.payload);
-    }
+    // Execute consume + produce + audit atomically
+    const txn = this.db.sqlite.transaction(() => {
+      // Snapshot marking before
+      const markingBefore: Record<string, unknown> = {};
+      for (const [placeId, tokens] of marking) {
+        markingBefore[placeId] = tokens.map((t) => t.payload);
+      }
 
-    // Consume tokens (one per input place)
-    const consumedTokens: Token[] = [];
-    for (const placeId of transition.consumes) {
-      const tokens = marking.get(placeId)!;
-      const token = tokens[0]!;
-      this.db.sqlite.prepare("DELETE FROM tokens WHERE id = ?").run(token.id);
-      consumedTokens.push(token);
-    }
+      // Consume tokens (one per input place)
+      const consumedTokens: Token[] = [];
+      for (const placeId of transition.consumes) {
+        const tokens = marking.get(placeId)!;
+        const token = tokens[0]!;
+        this.db.sqlite.prepare("DELETE FROM tokens WHERE id = ?").run(token.id);
+        consumedTokens.push(token);
+      }
 
-    // Produce tokens (one per output place)
-    const now = new Date().toISOString();
-    const producedTokens: Token[] = [];
-    for (const placeId of transition.produces) {
-      const tokenId = randomUUID();
-      this.db.sqlite
-        .prepare(
-          `INSERT INTO tokens (id, instance_id, place_id, payload_json, created_at)
-           VALUES (?, ?, ?, ?, ?)`,
-        )
-        .run(tokenId, instanceId, placeId, JSON.stringify(outputPayload), now);
-      producedTokens.push({
-        id: tokenId,
+      // Produce tokens (one per output place)
+      const now = new Date().toISOString();
+      const producedTokens: Token[] = [];
+      for (const placeId of transition.produces) {
+        const tokenId = randomUUID();
+        this.db.sqlite
+          .prepare(
+            `INSERT INTO tokens (id, instance_id, place_id, payload_json, created_at)
+             VALUES (?, ?, ?, ?, ?)`,
+          )
+          .run(tokenId, instanceId, placeId, JSON.stringify(outputPayload), now);
+        producedTokens.push({
+          id: tokenId,
+          instance_id: instanceId,
+          place_id: placeId,
+          payload: outputPayload,
+          created_at: now,
+        });
+      }
+
+      // Snapshot marking after
+      const markingAfterMap = this.getMarking(instanceId);
+      const markingAfter: Record<string, unknown> = {};
+      for (const [placeId, tokens] of markingAfterMap) {
+        markingAfter[placeId] = tokens.map((t) => t.payload);
+      }
+
+      // Write audit entry
+      const auditEntry = this.audit.append({
         instance_id: instanceId,
-        place_id: placeId,
-        payload: outputPayload,
-        created_at: now,
+        action: "transition_fired",
+        actor: {
+          actor_id: actorId,
+          role_id: actingRole?.id ?? "unknown",
+          authority_level: actorAuthority,
+        },
+        transition_id: transitionId,
+        marking_before: markingBefore,
+        marking_after: markingAfter,
+        evidence: evidence,
+        reasoning: reasoning,
       });
-    }
 
-    // Snapshot marking after
-    const markingAfterMap = this.getMarking(instanceId);
-    const markingAfter: Record<string, unknown> = {};
-    for (const [placeId, tokens] of markingAfterMap) {
-      markingAfter[placeId] = tokens.map((t) => t.payload);
-    }
-
-    // Write audit entry
-    const auditEntry = this.audit.append({
-      instance_id: instanceId,
-      action: "transition_fired",
-      actor: {
-        actor_id: actorId,
-        role_id: actingRole?.id ?? "unknown",
-        authority_level: actorAuthority,
-      },
-      transition_id: transitionId,
-      marking_before: markingBefore,
-      marking_after: markingAfter,
-      evidence: evidence,
-      reasoning: reasoning,
+      return {
+        consumedTokens,
+        producedTokens,
+        auditEntryId: auditEntry.id,
+      };
     });
+
+    const { consumedTokens, producedTokens, auditEntryId } = txn();
 
     return {
       success: true,
@@ -655,7 +666,7 @@ export class Engine {
       tokens_produced: producedTokens,
       postcondition_results: {},
       evidence: evidence ?? [],
-      audit_entry_id: auditEntry.id,
+      audit_entry_id: auditEntryId,
     };
   }
 
