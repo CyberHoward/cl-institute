@@ -1,0 +1,36 @@
+# SAP Integration
+#
+# Enterprise resource planning system used for financial management,
+# purchase order creation, budget tracking, and contract recording.
+# The Foundation uses SAP Business One for fund accounting and
+# procurement management.
+
+id = "bb000002-aaaa-4bbb-8ccc-ddddeeee0002"
+organization_id = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+name = "SAP"
+description = "Enterprise resource planning system for financial management. Handles purchase order creation, budget availability checks, contract recording, and fund accounting with proper GL coding for restricted and unrestricted funds."
+created_at = "2025-01-17T08:00:00Z"
+updated_at = "2025-01-17T08:00:00Z"
+
+# Capabilities exposed by this integration.
+
+[[capabilities]]
+id = "c1000003-aaaa-4bbb-8ccc-ddddeeee0003"
+name = "create_purchase_order"
+description = "Create a new purchase order in SAP with vendor details, line items, GL account coding, and fund allocation. Returns the generated PO number for tracking."
+input_schema = { type = "object", properties = { vendor_id = { type = "string" }, line_items = { type = "array", items = { type = "object", properties = { description = { type = "string" }, quantity = { type = "integer" }, unit_price = { type = "number" }, gl_account = { type = "string" }, fund_code = { type = "string" } } } }, requested_delivery_date = { type = "string", format = "date" }, notes = { type = "string" } }, required = ["vendor_id", "line_items"] }
+output_schema = { type = "object", properties = { purchase_order_number = { type = "string" }, status = { type = "string" }, created_at = { type = "string", format = "date-time" }, total_amount = { type = "number" } } }
+
+[[capabilities]]
+id = "c1000004-aaaa-4bbb-8ccc-ddddeeee0004"
+name = "check_budget_availability"
+description = "Check whether sufficient budget is available in a specified GL account and fund code for a given amount. Returns the current balance, committed amount, and available funds."
+input_schema = { type = "object", properties = { gl_account = { type = "string" }, fund_code = { type = "string" }, amount = { type = "number" }, fiscal_year = { type = "string" } }, required = ["gl_account", "fund_code", "amount"] }
+output_schema = { type = "object", properties = { gl_account = { type = "string" }, fund_code = { type = "string" }, budget_total = { type = "number" }, committed = { type = "number" }, spent = { type = "number" }, available = { type = "number" }, sufficient = { type = "boolean" } } }
+
+[[capabilities]]
+id = "c1000005-aaaa-4bbb-8ccc-ddddeeee0005"
+name = "record_contract"
+description = "Record an executed contract in SAP, linking it to the corresponding purchase order and vendor record. Stores contract terms, dates, and document references for audit and reporting."
+input_schema = { type = "object", properties = { purchase_order_number = { type = "string" }, vendor_id = { type = "string" }, contract_amount = { type = "number" }, start_date = { type = "string", format = "date" }, end_date = { type = "string", format = "date" }, document_reference = { type = "string" } }, required = ["purchase_order_number", "vendor_id", "contract_amount", "start_date", "end_date"] }
+output_schema = { type = "object", properties = { contract_id = { type = "string" }, status = { type = "string" }, recorded_at = { type = "string", format = "date-time" } } }

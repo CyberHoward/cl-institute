@@ -1,1 +1,103 @@
-export {};
+/**
+ * @clinstitute/typescript
+ *
+ * TypeScript intelligence layer for the Intelligent Institution Initiative.
+ *
+ * This package provides AI-driven policy interpretation, integration compilation,
+ * and autonomous agent operation on top of the Rust `inst` CLI core.
+ *
+ * Modules:
+ * - types/          -- TypeScript interfaces mirroring the Rust model
+ * - cli-bridge/     -- CLI invocation, JSON parsing (the boundary)
+ * - orchestration/  -- LLM prompt management, conversation state
+ * - policy-interpreter/ -- Policy assembly, LLM reasoning for decisions
+ * - integration-compiler/ -- Edge specification -> automation compilation
+ * - agent/          -- Autonomous agent runtime
+ * - targets/        -- Compilation target plugins (n8n, human-checklist)
+ */
+
+// Types (re-export all interfaces and type aliases)
+export type {
+  Organization,
+  PermissionLevel,
+  OrganizationMember,
+  OrganizationalRole,
+  MemberRoleAssignment,
+  Function,
+  Workflow,
+  WorkflowVersion,
+  NodeType,
+  DecisionType,
+  DecisionNode,
+  Edge,
+  RequirementType,
+  EdgeRequirement,
+  EdgeRolePermission,
+  PolicyStrength,
+  Policy,
+  Integration,
+  Capability,
+  InstanceStatus,
+  WorkflowInstance,
+  AuditAction,
+  Actor,
+  AuditEntry,
+  Severity,
+  ViolationLocation,
+  ConstraintViolation,
+  ValidationResult,
+  ChainVerification,
+  ChainVerificationError,
+} from "./types/index.js";
+
+// CLI Bridge
+export { CliBridge, CliError, CliParseError } from "./cli-bridge/index.js";
+export type { CliBridgeOptions } from "./cli-bridge/index.js";
+
+// Orchestration
+export { Orchestrator } from "./orchestration/index.js";
+export type {
+  ConversationMessage,
+  ConversationState,
+  LlmProviderConfig,
+  LlmResponse,
+} from "./orchestration/index.js";
+
+// Policy Interpreter
+export { PolicyInterpreter } from "./policy-interpreter/index.js";
+export type {
+  ResolvedPolicy,
+  PolicyRecommendation,
+} from "./policy-interpreter/index.js";
+
+// Integration Compiler
+export { IntegrationCompiler } from "./integration-compiler/index.js";
+export type {
+  CompiledEdge,
+  ResolvedCapability,
+  CompilationTarget,
+} from "./integration-compiler/index.js";
+
+// Agent
+export { Agent } from "./agent/index.js";
+export type {
+  AgentMode,
+  AgentConfig,
+  AgentDecision,
+  AgentEvent,
+  AgentEventHandler,
+} from "./agent/index.js";
+
+// Targets
+export { N8nTarget } from "./targets/n8n/index.js";
+export type {
+  N8nNode,
+  N8nConnection,
+  N8nWorkflow,
+} from "./targets/n8n/index.js";
+
+export { HumanChecklistTarget } from "./targets/human-checklist/index.js";
+export type {
+  ChecklistStep,
+  Checklist,
+} from "./targets/human-checklist/index.js";

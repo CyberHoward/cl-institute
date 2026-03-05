@@ -1,0 +1,13 @@
+# Compliance Officer
+#
+# Ensures that procurement activities adhere to federal, state, and
+# organizational regulations. Reviews vendor eligibility, sanctions
+# screening results, and conflict-of-interest disclosures.
+
+id = "b1000001-aaaa-4bbb-8ccc-ddddeeee0001"
+organization_id = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+name = "Compliance Officer"
+description = "Ensures regulatory and policy compliance across all procurement activities. Responsible for sanctions screening, conflict-of-interest reviews, and audit documentation. Reports to the Finance Director."
+authority_level = 2
+created_at = "2025-01-15T10:30:00Z"
+updated_at = "2025-01-15T10:30:00Z"

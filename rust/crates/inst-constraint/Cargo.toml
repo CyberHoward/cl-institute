@@ -1,0 +1,14 @@
+[package]
+name = "inst-constraint"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+inst-model = { path = "../inst-model" }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+chrono = { workspace = true }

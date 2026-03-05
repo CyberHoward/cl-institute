@@ -1,0 +1,32 @@
+# Budget Approval — Intermediate Node
+#
+# Approval decision point where the Finance Director (or Board, for
+# amounts exceeding $25,000) reviews the proposed expenditure against
+# available budget, grant restrictions, and the Foundation's financial
+# policies. Produces an approved or denied budget decision.
+
+id = "aa000003-aaaa-4bbb-8ccc-ddddeeee0003"
+workflow_id = "f1000001-aaaa-4bbb-8ccc-ddddeeee0001"
+node_type = "intermediate"
+label = "Budget Approval"
+decision_type = "approval"
+index = 2
+x = 600.0
+y = 300.0
+requires_authority = 3
+output_schema = """
+{
+  "type": "object",
+  "properties": {
+    "approved": { "type": "boolean" },
+    "approved_amount": { "type": "number" },
+    "budget_line_item": { "type": "string" },
+    "fiscal_year": { "type": "string" },
+    "conditions": { "type": "string" },
+    "approver_notes": { "type": "string" }
+  },
+  "required": ["approved", "approved_amount", "budget_line_item", "fiscal_year"]
+}
+"""
+created_at = "2025-01-16T09:15:00Z"
+updated_at = "2025-01-16T09:15:00Z"

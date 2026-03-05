@@ -1,0 +1,21 @@
+[package]
+name = "inst-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "inst"
+path = "src/main.rs"
+
+[dependencies]
+inst-model = { path = "../inst-model" }
+inst-store = { path = "../inst-store" }
+inst-constraint = { path = "../inst-constraint" }
+inst-audit = { path = "../inst-audit" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
