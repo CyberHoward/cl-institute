@@ -454,29 +454,33 @@ export class Engine {
     const instanceId = randomUUID();
     const now = new Date().toISOString();
 
-    this.db.sqlite
-      .prepare(
-        `INSERT INTO instances (id, net_id, status, created_at, updated_at)
-         VALUES (?, ?, 'running', ?, ?)`,
-      )
-      .run(instanceId, netId, now, now);
+    const txn = this.db.sqlite.transaction(() => {
+      this.db.sqlite
+        .prepare(
+          `INSERT INTO instances (id, net_id, status, created_at, updated_at)
+           VALUES (?, ?, 'running', ?, ?)`,
+        )
+        .run(instanceId, netId, now, now);
 
-    // Create the initial token
-    const tokenId = randomUUID();
-    this.db.sqlite
-      .prepare(
-        `INSERT INTO tokens (id, instance_id, place_id, payload_json, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      .run(tokenId, instanceId, startPlaceId, JSON.stringify(initialPayload), now);
+      // Create the initial token
+      const tokenId = randomUUID();
+      this.db.sqlite
+        .prepare(
+          `INSERT INTO tokens (id, instance_id, place_id, payload_json, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(tokenId, instanceId, startPlaceId, JSON.stringify(initialPayload), now);
 
-    // Audit entry
-    this.audit.append({
-      instance_id: instanceId,
-      action: "instance_created",
-      actor: { actor_id: "system", role_id: "system", authority_level: 0 },
-      marking_after: { [startPlaceId]: [initialPayload] },
+      // Audit entry
+      this.audit.append({
+        instance_id: instanceId,
+        action: "instance_created",
+        actor: { actor_id: "system", role_id: "system", authority_level: 0 },
+        marking_after: { [startPlaceId]: [initialPayload] },
+      });
     });
+
+    txn();
 
     return { id: instanceId, net_id: netId, status: "running", created_at: now, updated_at: now };
   }
