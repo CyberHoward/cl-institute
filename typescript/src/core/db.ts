@@ -130,6 +130,15 @@ const SCHEMA = `
     entry_hash TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS context_entries (
+    institution_id TEXT NOT NULL REFERENCES institutions(id),
+    key TEXT NOT NULL,
+    value_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (institution_id, key)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tokens_instance ON tokens(instance_id);
   CREATE INDEX IF NOT EXISTS idx_tokens_place ON tokens(place_id);
   CREATE INDEX IF NOT EXISTS idx_audit_instance ON audit_entries(instance_id);

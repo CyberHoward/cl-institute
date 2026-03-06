@@ -5,6 +5,7 @@ export { buildWorkOrder } from "./context.js";
 export type { WorkOrder } from "./context.js";
 export { validateNet } from "./validate.js";
 export { DB } from "./db.js";
+export { InstitutionalContextStore } from "./context-store.js";
 
 // Re-export all types
 export type {
