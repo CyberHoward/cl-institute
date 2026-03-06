@@ -282,7 +282,7 @@ archive/
 
 3. **✓ First real workflow encoded.** The ASADA Carta de Agua (water availability letter) process: 9 places, 7 transitions, 7 policies, full end-to-end test with authority gating and evidence capture.
 
-4. **Next: Agent runtime.** Build the intelligence layer that consumes `WorkOrder` objects and executes agentic transitions via LLM + tools. Integrate with `pi-agent-core` / `pi-ai`.
+4. **✓ Agent runtime (phase 1).** AgentRunner with step/run loop, postcondition verification (deterministic + LLM fallback with confidence tracking), institutional context store, prompt construction. Mock executor for testing; real LLM integration deferred to phase 2.
 
 5. **Next: Postcondition verification.** Deterministic verifiers mapped to postcondition strings, with LLM-as-judge fallback.
 
