@@ -37,4 +37,9 @@ export type {
   ValidationResult,
   FiringResult,
   PendingJudgment,
+  VerificationMethod,
+  PostconditionResult,
+  StepOutcome,
+  StepResult,
+  RunResult,
 } from "./types.js";

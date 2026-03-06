@@ -273,3 +273,38 @@ export interface PendingJudgment {
   token_payloads: Record<string, unknown>[];
   policies: Policy[];
 }
+
+// ---------------------------------------------------------------------------
+// Postcondition verification
+// ---------------------------------------------------------------------------
+
+export type VerificationMethod = "deterministic" | "llm";
+
+export interface PostconditionResult {
+  postcondition: string;
+  satisfied: boolean;
+  method: VerificationMethod;
+  confidence: number; // 1.0 for deterministic, 0-1 for LLM
+}
+
+// ---------------------------------------------------------------------------
+// Agent execution
+// ---------------------------------------------------------------------------
+
+export type StepOutcome = "fired" | "escalated" | "no_enabled_transitions" | "error";
+
+export interface StepResult {
+  outcome: StepOutcome;
+  transition_id?: string | undefined;
+  instance_id: string;
+  firing_result?: FiringResult | undefined;
+  postcondition_results?: PostconditionResult[] | undefined;
+  retries_used?: number | undefined;
+  error?: string | undefined;
+}
+
+export interface RunResult {
+  instance_id: string;
+  steps: StepResult[];
+  final_outcome: "completed" | "stuck" | "escalated" | "error" | "max_steps";
+}
