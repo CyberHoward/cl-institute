@@ -57,3 +57,16 @@ export type {
   FiringResult,
   PendingJudgment,
 } from "./core/index.js";
+
+// Agent layer
+export {
+  AgentRunner,
+  type TransitionExecutor,
+  type AgentRunnerOptions,
+  PostconditionVerifier,
+  type DeterministicVerifier,
+  type LlmJudge,
+  type ExecutionEvidence,
+  buildSystemPrompt,
+  buildContextPrompt,
+} from "./agent/index.js";
