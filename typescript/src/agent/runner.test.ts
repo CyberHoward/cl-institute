@@ -86,7 +86,7 @@ describe("AgentRunner", () => {
     const instance = engine.instantiate(netId, "start", { data: "hello" });
 
     const verifier = new PostconditionVerifier(
-      new Map([["thing-done", () => true]]),
+      new Map([["thing-done", (): boolean => true]]),
     );
 
     const executor = mockExecutor({
@@ -142,7 +142,7 @@ describe("AgentRunner", () => {
     const instance = engine.instantiate(netId, "start", { data: "test" });
 
     const verifier = new PostconditionVerifier(
-      new Map([["thing-done", () => true]]),
+      new Map([["thing-done", (): boolean => true]]),
     );
     const executor = mockExecutor({
       "step-one": {
@@ -165,8 +165,8 @@ describe("AgentRunner", () => {
 
     const verifier = new PostconditionVerifier(
       new Map([
-        ["thing-done", () => true],
-        ["second-done", () => true],
+        ["thing-done", (): boolean => true],
+        ["second-done", (): boolean => true],
       ]),
     );
 
@@ -192,7 +192,7 @@ describe("AgentRunner", () => {
     const instance = engine.instantiate(netId, "start", { data: "hello" });
 
     const verifier = new PostconditionVerifier(
-      new Map([["thing-done", () => false]]), // always fails
+      new Map([["thing-done", (): boolean => false]]), // always fails
     );
 
     const executor = mockExecutor({
@@ -233,8 +233,8 @@ describe("AgentRunner", () => {
 
     const verifier = new PostconditionVerifier(
       new Map([
-        ["thing-done", () => true],
-        ["second-done", () => true],
+        ["thing-done", (): boolean => true],
+        ["second-done", (): boolean => true],
       ]),
     );
 
@@ -255,8 +255,8 @@ describe("AgentRunner", () => {
 
     const verifier = new PostconditionVerifier(
       new Map([
-        ["thing-done", () => true],
-        ["second-done", () => false], // fails on step two
+        ["thing-done", (): boolean => true],
+        ["second-done", (): boolean => false], // fails on step two
       ]),
     );
 

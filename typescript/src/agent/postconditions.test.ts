@@ -55,8 +55,8 @@ describe("PostconditionVerifier", () => {
   it("verifies both required and desired postconditions", async () => {
     const verifier = new PostconditionVerifier(
       new Map([
-        ["required-thing", () => true],
-        ["nice-to-have", () => false],
+        ["required-thing", (): boolean => true],
+        ["nice-to-have", (): boolean => false],
       ]),
     );
 
@@ -75,8 +75,8 @@ describe("PostconditionVerifier", () => {
   it("checks allRequiredMet correctly", async () => {
     const verifier = new PostconditionVerifier(
       new Map([
-        ["a", () => true],
-        ["b", () => false],
+        ["a", (): boolean => true],
+        ["b", (): boolean => false],
       ]),
     );
 
