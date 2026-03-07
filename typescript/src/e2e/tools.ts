@@ -21,9 +21,10 @@ export function createWebSearchTool(searchScriptPath: string): AgentTool {
       ),
     }),
     execute: async (_toolCallId, params) => {
-      const args = [searchScriptPath, params.query];
-      if (params.num_results) args.push("-n", String(params.num_results));
-      if (params.include_content) args.push("--content");
+      const p = params as { query: string; num_results?: number; include_content?: boolean };
+      const args = [searchScriptPath, p.query];
+      if (p.num_results) args.push("-n", String(p.num_results));
+      if (p.include_content) args.push("--content");
       const { stdout } = await execFile("node", args, {
         env: { ...process.env },
         timeout: 30_000,
@@ -46,7 +47,8 @@ export function createFetchPageContentTool(contentScriptPath: string): AgentTool
       url: Type.String({ description: "URL to fetch" }),
     }),
     execute: async (_toolCallId, params) => {
-      const { stdout } = await execFile("node", [contentScriptPath, params.url], {
+      const p = params as { url: string };
+      const { stdout } = await execFile("node", [contentScriptPath, p.url], {
         env: { ...process.env },
         timeout: 15_000,
       });
