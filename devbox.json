@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.0/.schema/devbox.schema.json",
+  "packages": {
+    "nodejs": "24",
+    "sqlite": "latest",
+    "git": "latest"
+  },
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "shell": {
+    "init_hook": [
+      "echo '🏛️  cl-institute devbox shell ready'",
+      "cd typescript && npm install --prefer-offline 2>/dev/null && cd .."
+    ],
+    "scripts": {
+      "build": "cd typescript && npm run build",
+      "test": "cd typescript && npm run test",
+      "typecheck": "cd typescript && npm run typecheck",
+      "spike": "cd typescript && npm run spike"
+    }
+  }
+}
